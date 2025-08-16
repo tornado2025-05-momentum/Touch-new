@@ -72,48 +72,91 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
-android {
-    ndkVersion rootProject.ext.ndkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
-    compileSdk rootProject.ext.compileSdkVersion
+plugins {
+    id "com.android.application"
+    id "com.facebook.react"
+    id "com.google.gms.google-services" // ← 追加
+}
 
-    namespace "com.myapp"
+android {
+    namespace "com.momentum"              // ← パッケージ名に合わせて変更可
+    compileSdkVersion 34
+
     defaultConfig {
-        applicationId "com.myapp"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        applicationId "com.momentum"      // ← あなたのアプリID
+        minSdkVersion 23
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
+
+        // 位置情報を正確に取得する端末で必要になる場合がある
+        // missingDimensionStrategy 'react-native-camera', 'general'  // 例: 特定ライブラリ用
     }
+
+    // リリース署名（デバッグは自動署名）
     signingConfigs {
-        debug {
-            storeFile file('debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
+        release {
+            // keystore の設定を使う場合はここに記述
+            // storeFile file(System.getenv("MYAPP_RELEASE_STORE_FILE"))
+            // storePassword System.getenv("MYAPP_RELEASE_STORE_PASSWORD")
+            // keyAlias System.getenv("MYAPP_RELEASE_KEY_ALIAS")
+            // keyPassword System.getenv("MYAPP_RELEASE_KEY_PASSWORD")
         }
     }
+
     buildTypes {
         debug {
-            signingConfig signingConfigs.debug
+            // デフォルトでOK
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
-            minifyEnabled enableProguardInReleaseBuilds
+            // 署名設定を使う場合は有効化
+            // signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+
+    // NDK を使わない場合はそのまま
+    packagingOptions {
+        // Firebase/Play Services で競合しやすいメタ情報を除外
+        exclude("META-INF/**")
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // Hermes は gradle.properties の設定を優先（デフォルトで有効）
+    buildFeatures {
+        buildConfig true
+    }
+}
+
+// React Native Gradle Plugin の設定（必要ならカスタム）
+react {
+    // hermesEnabled は gradle.properties (newArchEnabled/ hermesEnabled) を使用
+    // bundleInDebug = false
 }
 
 dependencies {
-    // The version of react-native is set by the React Native Gradle Plugin
-    implementation("com.facebook.react:react-android")
+    // React Native 本体（プラグインが自動解決）
+    implementation "com.facebook.react:react-android"
 
-    if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android")
-    } else {
-        implementation jscFlavor
-    }
+    // --- 位置情報（GPS/Fused Location） ---
+    implementation "com.google.android.gms:play-services-location:21.3.0"
+
+    // --- Firebase ---
+    // BOMでバージョンを一括管理（数字は適宜最新へ）
+    implementation platform("com.google.firebase:firebase-bom:33.3.0")
+    implementation "com.google.firebase:firebase-firestore"
+    implementation "com.google.firebase:firebase-auth"
+
+    // （必要なら）Analytics 等を追加
+    // implementation "com.google.firebase:firebase-analytics"
+
+    // （背景タスクを使うなら）react-native-background-actions は npm 側でOK
+    // Java 依存は不要
 }
+apply plugin: 'com.google.gms.google-services'

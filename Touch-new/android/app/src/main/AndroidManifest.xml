@@ -1,7 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-
+    <!-- 位置情報 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- バックグラウンドで位置取得（必要な場合のみ）-->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- フォアグラウンドサービス -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"
@@ -10,6 +17,12 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:supportsRtl="true">
+
+      <service
+      android:name="com.asterinet.react.bgactions.BackgroundActionsTask"
+      android:exported="false"
+      android:foregroundServiceType="location" />
+
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
