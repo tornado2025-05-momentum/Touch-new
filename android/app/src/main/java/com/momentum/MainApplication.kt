@@ -1,4 +1,4 @@
-package com.momentum1
+package com.momentum
 
 import android.app.Application
 import com.facebook.react.PackageList
