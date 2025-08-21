@@ -1,5 +1,5 @@
 // App.tsx
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   View,
   FlatList,
+  TextInput,
 } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
 import auth from '@react-native-firebase/auth';
@@ -26,16 +27,13 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [uid, setUid] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [authErr, setAuthErr] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
-  // 起動時：未ログインなら匿名で
+  // 起動時：認証状態を監視（匿名サインインは行わない）
   useEffect(() => {
-    const unsub = auth().onAuthStateChanged(async (u) => {
-      if (!u) {
-        try { await auth().signInAnonymously(); }
-        catch (e) { console.log('anon sign-in error', e); }
-      }
+    const unsub = auth().onAuthStateChanged((u) => {
       setUid(u?.uid ?? null);
+      setInitializing(false);
     });
     return unsub;
   }, []);
@@ -135,31 +133,29 @@ export default function App() {
       setWatchId(null);
     }
   };
-  const ensureAuth = async () => {
-  try {
-    setAuthErr(null);
-    const current = auth().currentUser;
-    if (current) { setUid(current.uid); return; }
-    const cred = await auth().signInAnonymously();
-    setUid(cred.user.uid);
-    console.log('signed in anon', cred.user.uid);
-  } catch (e: any) {
-    console.log('anon sign-in error', e);
-    setAuthErr(`${e.code || 'auth'}: ${e.message || String(e)}`);
+
+  // 初期化中は描画をブロック（位置情報ロジックはそのまま）
+  if (initializing) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>位置情報 x Firebase</Text>
+        <Text>Initializing Firebase Auth…</Text>
+      </SafeAreaView>
+    );
   }
-};
 
-// 起動時にも一度だけ試す
-useEffect(() => { ensureAuth(); }, []);
+  // 未ログインなら Email/Password ログイン画面を表示
+  if (!uid) {
+    return <EmailPasswordAuthScreen />;
+  }
 
-  // 表示
+  // 表示（ログイン済み）
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>位置情報 x Firebase</Text>
-      <Text>UID: {uid ?? '-'}</Text>
-      {authErr && <Text style={{color:'red'}}>Auth Error: {authErr}</Text>}
+      <Text>UID: {uid}</Text>
       <View style={styles.row}>
-        <Button title="認証を再試行" onPress={ensureAuth} />
+        <Button title="Sign out" onPress={() => auth().signOut()} />
       </View>
       <Text>権限: {granted ? '許可' : '未許可'}</Text>
 
@@ -201,6 +197,67 @@ useEffect(() => { ensureAuth(); }, []);
   );
 }
 
+/** ------ Email/Password ログイン（最小） ------ */
+function EmailPasswordAuthScreen() {
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setErr(null);
+    if (!email.includes('@')) { setErr('メール形式が正しくありません'); return; }
+    if (pw.length < 6) { setErr('パスワードは6文字以上'); return; }
+    setBusy(true);
+    try {
+      if (mode === 'signup') {
+        await auth().createUserWithEmailAndPassword(email.trim(), pw);
+      } else {
+        await auth().signInWithEmailAndPassword(email.trim(), pw);
+      }
+      // 成功すると onAuthStateChanged が発火し、App 側がログイン済みUIへ切替
+    } catch (e: any) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>ログイン</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="you@example.com"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="パスワード（6文字以上）"
+        secureTextEntry
+        value={pw}
+        onChangeText={setPw}
+      />
+      {err && <Text style={styles.err}>{err}</Text>}
+      <View style={styles.row}>
+        <Button
+          title={busy ? '処理中…' : mode === 'signup' ? '新規登録' : 'ログイン'}
+          onPress={submit}
+          disabled={busy}
+        />
+      </View>
+      <Text style={{ color: '#0a7', fontWeight: '600', padding: 8 }}
+            onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+        {mode === 'login' ? 'アカウントを作成する' : '既にアカウントをお持ちの方はこちら'}
+      </Text>
+    </SafeAreaView>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', padding: 16 },
   title: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
@@ -209,4 +266,13 @@ const styles = StyleSheet.create({
   pos: { marginTop: 12, textAlign: 'center', fontSize: 16 },
   member: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   err: { marginTop: 12, color: 'red' },
+  input: {
+    width: '90%',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
 });
