@@ -1,5 +1,6 @@
+
 // App.tsx
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useRef} from 'react';
 import {
   SafeAreaView,
   Text,
@@ -15,7 +16,7 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
 type Pos = { lat: number; lon: number };
-type Member = { id: string; lat?: number; lon?: number; updatedAt?: any };
+type Member = { id: string; lat?: number; lon?: number; updatedAt?: any; place?: string };
 
 const ROOM_ID = 'demo-room-1'; // 全端末で同じにする
 
@@ -27,6 +28,12 @@ export default function App() {
   const [uid, setUid] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [authErr, setAuthErr] = useState<string | null>(null);
+  const [place, setPlace] = useState<string | null>(null);
+  const placeCache = useRef(new Map<string, string>());
+const lastReverseAt = useRef(0);
+const lastCellKey = useRef<string | null>(null);
+
+
 
   // 起動時：未ログインなら匿名で
   useEffect(() => {
@@ -73,6 +80,14 @@ export default function App() {
       );
     return unsub;
   }, []);
+//   useEffect(() => {
+//   const ref = firestore().collection('rooms').doc(ROOM_ID).collection('members');
+//   const unsub = ref.onSnapshot((snap) => {
+//     const list: Member[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+//     setMembers(list);
+//   });
+//   return unsub;
+// }, []);
 
   // Firestore 送信
   async function uploadLocation(lat: number, lon: number) {
@@ -86,6 +101,50 @@ export default function App() {
       );
     console.log('upload', { lat, lon });
   }
+  // 約100mグリッドでキャッシュキー
+const cellKey = (lat: number, lon: number) => `${lat.toFixed(3)},${lon.toFixed(3)}`;
+
+  // 逆ジオコーディング（Nominatim）
+async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  const key = cellKey(lat, lon);
+  const cached = placeCache.current.get(key);
+  if (cached) return cached;
+
+  const url =
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2` +
+    `&lat=${lat}&lon=${lon}&accept-language=ja&email=you@example.com`;
+  const res = await fetch(url);
+  const j = await res.json();
+  const a = j.address || {};
+  const name =
+    a.neighbourhood || a.suburb || a.village || a.town || a.city ||
+    a.city_district || a.municipality || a.county || '位置不明';
+  placeCache.current.set(key, name);
+  return name;
+}
+
+  async function updatePlace(lat: number, lon: number) {
+  const now = Date.now();
+  const key = cellKey(lat, lon);
+  if (key === lastCellKey.current) return;         // 同じ100mマスならスキップ
+  if (now - lastReverseAt.current < 3000) return;  // 3秒に1回まで
+  lastReverseAt.current = now;
+  lastCellKey.current = key;
+
+  try {
+    const name = await reverseGeocode(lat, lon);
+    setPlace(name);
+
+    const cur = auth().currentUser?.uid;
+    if (cur) {
+      await firestore()
+        .collection('rooms').doc(ROOM_ID).collection('members').doc(cur)
+        .set({ place: name }, { merge: true });
+    }
+  } catch (e) {
+    // 失敗時は無視
+  }
+}
 
   // 1回取得
   const getOnce = () => {
@@ -94,17 +153,12 @@ export default function App() {
       (p) => {
         const lat = p.coords.latitude;
         const lon = p.coords.longitude;
-        setPos({ lat, lon });           // 画面にも反映
-        uploadLocation(lat, lon);       // Firestoreへ送信
+        setPos({ lat, lon });
+        uploadLocation(lat, lon);
+        updatePlace(lat, lon);
       },
       (e) => setError(`${e.code}: ${e.message}`),
-      {
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 0,
-        forceRequestLocation: true,
-        showLocationDialog: true,
-      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0, forceRequestLocation: true, showLocationDialog: true },
     );
   };
 
@@ -117,14 +171,10 @@ export default function App() {
         const lon = p.coords.longitude;
         setPos({ lat, lon });
         uploadLocation(lat, lon);
+        updatePlace(lat, lon);
       },
       (e) => setError(`${e.code}: ${e.message}`),
-      {
-        enableHighAccuracy: true,
-        distanceFilter: 5, // 5m以上で更新（節電）
-        interval: 3000,
-        fastestInterval: 1000,
-      },
+      { enableHighAccuracy: true, distanceFilter: 5, interval: 3000, fastestInterval: 1000 },
     );
     setWatchId(id as unknown as number);
   };
@@ -175,28 +225,30 @@ useEffect(() => { ensureAuth(); }, []);
       </View>
 
       {pos && (
-        <Text style={styles.pos}>
-          My Lat: {pos.lat.toFixed(6)}{'\n'}
-          My Lon: {pos.lon.toFixed(6)}
-        </Text>
-      )}
+    <Text style={styles.pos}>
+      My Lat: {pos.lat.toFixed(6)}{'\n'}
+      My Lon: {pos.lon.toFixed(6)}{'\n'}
+      現在地: {place ?? '取得中…'}
+    </Text>
+  )}
       {error && <Text style={styles.err}>Error: {error}</Text>}
 
       <Text style={styles.subtitle}>同じ部屋のメンバー</Text>
       <FlatList
-        style={{ width: '90%', marginTop: 8 }}
-        data={members}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Text style={styles.member}>
-            {item.id.slice(0, 6)}…{'  '}
-            lat:{typeof item.lat === 'number' ? item.lat.toFixed(5) : '-'}{'  '}
-            lon:{typeof item.lon === 'number' ? item.lon.toFixed(5) : '-'}
-            {item.updatedAt?.toDate?.() && `  (${item.updatedAt.toDate().toLocaleTimeString()})`}
-            {uid && item.id === uid ? '  ← 自分' : ''}
-          </Text>
-        )}
-      />
+  style={{ width: '90%', marginTop: 8 }}
+  data={members}
+  keyExtractor={(item) => item.id}
+  renderItem={({ item }) => (
+    <Text style={styles.member}>
+      {item.id.slice(0, 6)}…{'  '}
+      lat:{typeof item.lat === 'number' ? item.lat.toFixed(5) : '-'}{'  '}
+      lon:{typeof item.lon === 'number' ? item.lon.toFixed(5) : '-'}{'  '}
+      {item.place ? `(${item.place})` : ''}
+      {item.updatedAt?.toDate?.() && `  (${item.updatedAt.toDate().toLocaleTimeString()})`}
+      {uid && item.id === uid ? '  ← 自分' : ''}
+    </Text>
+  )}
+/>
     </SafeAreaView>
   );
 }
@@ -210,3 +262,5 @@ const styles = StyleSheet.create({
   member: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   err: { marginTop: 12, color: 'red' },
 });
+
+
