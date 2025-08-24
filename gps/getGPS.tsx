@@ -16,7 +16,7 @@ import firestore from '@react-native-firebase/firestore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigator/RootNavigator';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Details'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'GPS'>;
 
 type Pos = { lat: number; lon: number };
 type Member = {
