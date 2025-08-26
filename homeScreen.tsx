@@ -10,8 +10,12 @@ export default function HomeScreen({ navigation }: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>Home Screen</Text>
       <Button
-        title="Go to Details"
-        onPress={() => navigation.navigate('Details')}
+        title="フォアグラウンド版へ"
+        onPress={() => navigation.navigate('Foreground')}
+      />
+      <Button
+        title="バックグラウンド版へ"
+        onPress={() => navigation.navigate('Background')}
       />
     </View>
   );

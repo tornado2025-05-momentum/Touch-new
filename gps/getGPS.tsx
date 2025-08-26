@@ -15,8 +15,9 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigator/RootNavigator';
+import LocationDisplay from './LocationDisplay';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Details'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Foreground'>;
 
 type Pos = { lat: number; lon: number };
 type Member = {
@@ -29,7 +30,7 @@ type Member = {
 
 const ROOM_ID = 'demo-room-1'; // 全端末で同じにする
 
-export default function getMyLocation({ route, navigation }: Props) {
+export default function GetMyLocation({ route, navigation }: Props) {
   const [granted, setGranted] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
   const [watchId, setWatchId] = useState<number | null>(null);
@@ -136,8 +137,16 @@ export default function getMyLocation({ route, navigation }: Props) {
       `&lat=${lat}&lon=${lon}&accept-language=ja&email=you@example.com`;
     const res = await fetch(url);
     const j = await res.json();
+
+
+
     const a = j.address || {};
     const name =
+      a.railway ||          // 駅名
+      a.amenity ||          // 公共施設名 (レストランなど)
+      a.shop ||             // 店名
+      a.tourism ||          // 観光地名
+      a.building ||         // 建物名
       a.neighbourhood ||
       a.suburb ||
       a.village ||
@@ -147,6 +156,7 @@ export default function getMyLocation({ route, navigation }: Props) {
       a.municipality ||
       a.county ||
       '位置不明';
+
     placeCache.current.set(key, name);
     return name;
   }
@@ -154,7 +164,7 @@ export default function getMyLocation({ route, navigation }: Props) {
   async function updatePlace(lat: number, lon: number) {
     const now = Date.now();
     const key = cellKey(lat, lon);
-    if (key === lastCellKey.current) return; // 同じ100mマスならスキップ
+    if (key === lastCellKey.current) return; // 以前の位置から100m以内であれば、cellKey が同じになり、地名取得処理がスキップされる
     if (now - lastReverseAt.current < 3000) return; // 3秒に1回まで
     lastReverseAt.current = now;
     lastCellKey.current = key;
@@ -184,8 +194,8 @@ export default function getMyLocation({ route, navigation }: Props) {
       p => {
         const lat = p.coords.latitude;
         const lon = p.coords.longitude;
-        setPos({ lat, lon });
-        uploadLocation(lat, lon);
+        setPos({ lat, lon }); //画面に反映
+        uploadLocation(lat, lon); //Firebaseへ送信
         updatePlace(lat, lon);
       },
       e => setError(`${e.code}: ${e.message}`),
@@ -193,7 +203,7 @@ export default function getMyLocation({ route, navigation }: Props) {
         enableHighAccuracy: true,
         timeout: 20000,
         maximumAge: 0,
-        forceRequestLocation: true,
+        //forceRequestLocation: true,
         showLocationDialog: true,
       },
     );
@@ -213,7 +223,7 @@ export default function getMyLocation({ route, navigation }: Props) {
       e => setError(`${e.code}: ${e.message}`),
       {
         enableHighAccuracy: true,
-        distanceFilter: 5,
+        distanceFilter: 5,  //5m以上で更新（節電）
         interval: 3000,
         fastestInterval: 1000,
       },
@@ -227,6 +237,10 @@ export default function getMyLocation({ route, navigation }: Props) {
       setWatchId(null);
     }
   };
+
+  // UIコンポーネントに渡すために、追跡中かどうかを判定する
+  const isTracking = watchId != null;
+
   const ensureAuth = async () => {
     try {
       setAuthErr(null);
@@ -249,100 +263,19 @@ export default function getMyLocation({ route, navigation }: Props) {
     ensureAuth();
   }, []);
 
-  // 表示
+  //表示
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>位置情報 x Firebase</Text>
-      <Text>UID: {uid ?? '-'}</Text>
-      {authErr && <Text style={{ color: 'red' }}>Auth Error: {authErr}</Text>}
-      <View style={styles.row}>
-        <Button title="認証を再試行" onPress={ensureAuth} />
-      </View>
-      <Text>権限: {granted ? '許可' : '未許可'}</Text>
-
-      <View style={styles.row}>
-        <Button title="現在地を1回取得 & 送信" onPress={getOnce} />
-      </View>
-      <View style={styles.row}>
-        {watchId == null ? (
-          <Button title="連続取得を開始" onPress={startWatch} />
-        ) : (
-          <Button title="連続取得を停止" onPress={stopWatch} />
-        )}
-      </View>
-
-      {pos && (
-        <Text style={styles.pos}>
-          My Lat: {pos.lat.toFixed(6)}
-          {'\n'}
-          My Lon: {pos.lon.toFixed(6)}
-          {'\n'}
-          現在地: {place ?? '取得中…'}
-        </Text>
-      )}
-      {error && <Text style={styles.err}>Error: {error}</Text>}
-
-      <Text style={styles.subtitle}>同じ部屋のメンバー</Text>
-      <FlatList
-        style={{ width: '100%', marginTop: 8 }}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        data={members}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => {
-          const isMe = uid && item.id === uid;
-          const timeStr = item.updatedAt?.toDate?.()
-            ? item.updatedAt.toDate().toLocaleTimeString()
-            : '-';
-          return (
-            <View style={styles.memberRow}>
-              <View style={styles.memberTop}>
-                <Text style={[styles.memberId, isMe && styles.me]}>
-                  {isMe ? '自分' : `${item.id.slice(0, 6)}…`}
-                </Text>
-                <Text style={styles.memberTime}>{timeStr}</Text>
-              </View>
-
-              <Text style={styles.memberPlace}>
-                すれ違い場所: {item.place ?? '取得中…'}
-              </Text>
-
-              <Text style={styles.memberCoords}>
-                lat:{typeof item.lat === 'number' ? item.lat.toFixed(5) : '-'}
-                {'  '}
-                lon:{typeof item.lon === 'number' ? item.lon.toFixed(5) : '-'}
-              </Text>
-            </View>
-          );
-        }}
-      />
-    </SafeAreaView>
+    <LocationDisplay
+      title="位置情報 (フォアグラウンドのみ版)"
+      uid={uid}
+      isTracking={isTracking}
+      pos={pos}
+      place={place}
+      error={error}
+      members={members}
+      onGetOnce={getOnce}
+      onStartTracking={startWatch} // startWatchを渡す
+      onStopTracking={stopWatch}   // stopWatchを渡す
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', padding: 16 },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
-  subtitle: { fontSize: 16, fontWeight: '600', marginTop: 16 },
-  caption: { fontSize: 12, color: '#666', marginTop: 4 },
-  row: { marginVertical: 6, width: 260 },
-  pos: { marginTop: 12, textAlign: 'center', fontSize: 16 },
-
-  memberRow: {
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ddd',
-  },
-  memberTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  memberId: { fontSize: 14, fontWeight: '600' },
-  me: { color: '#0A84FF' },
-  memberTime: { fontSize: 12, color: '#888' },
-  memberPlace: { marginTop: 2, fontSize: 13, color: '#444' },
-  memberCoords: { marginTop: 2, fontSize: 12, color: '#666' },
-
-  member: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
-  err: { marginTop: 12, color: 'red' },
-});
