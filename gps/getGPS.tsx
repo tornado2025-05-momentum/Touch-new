@@ -28,6 +28,7 @@ type Member = {
 };
 
 const ROOM_ID = 'demo-room-1'; // 全端末で同じにする
+const WALK_MAX_MPS = 1.6;
 
 export default function getMyLocation({ route, navigation }: Props) {
   const [granted, setGranted] = useState(false);
@@ -44,6 +45,13 @@ export default function getMyLocation({ route, navigation }: Props) {
   const nearSinceRef = useRef<Map<string, number>>(new Map());
   const lastUploadAt = useRef(0);
   const [roomMembers, setRoomMembers] = useState<Member[]>([]);
+  const lastUploadSampleRef = useRef<{
+    lat: number;
+    lon: number;
+    t: number;
+  } | null>(null);
+  const mySlowRef = useRef<boolean>(false);
+  const [mySpeedMps, setMySpeedMps] = useState<number | null>(null);
 
   // 起動時：未ログインなら匿名で
   useEffect(() => {
@@ -100,37 +108,36 @@ export default function getMyLocation({ route, navigation }: Props) {
       );
     return unsub;
   }, []);
-  // 追加: 10分以上100m以内の相手だけを表示対象にする
+  // 近接判定（自分が徒歩以下のときだけカウント）
   useEffect(() => {
     if (!pos) return;
     const now = Date.now();
     const nearSince = nearSinceRef.current;
 
-    // 近接状態の更新
     members.forEach(m => {
       if (!m || m.id === uid) return;
       const hasCoords = typeof m.lat === 'number' && typeof m.lon === 'number';
       const updatedAtMs = m.updatedAt?.toDate?.()?.getTime?.() ?? 0;
 
-      // 最終更新が古すぎる相手は無効化（2分以上）
       if (!hasCoords || now - updatedAtMs > 2 * 60 * 1000) {
         nearSince.delete(m.id);
         return;
       }
 
       const d = distanceMeters(pos.lat, pos.lon, m.lat!, m.lon!);
-      if (d <= 100) {
+
+      // 自分が徒歩以下 かつ 100m以内のときだけ継続カウント
+      if (d <= 100 && mySlowRef.current) {
         if (!nearSince.has(m.id)) nearSince.set(m.id, now);
       } else {
         nearSince.delete(m.id);
       }
     });
 
-    // 表示リストを確定（10分継続で採用）
     const eligible = members.filter(m => {
-      if (m.id === uid) return false; // 自分は除外（必要ならtrueに）
+      if (m.id === uid) return false;
       const since = nearSince.get(m.id);
-      return since != null && now - since >= 10 * 60 * 1000;
+      return since != null && now - since >= 10 * 60 * 1000; // 10分
     });
     setRoomMembers(eligible);
   }, [pos, members, uid]);
