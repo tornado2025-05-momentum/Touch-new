@@ -41,6 +41,9 @@ export default function getMyLocation({ route, navigation }: Props) {
   const placeCache = useRef(new Map<string, string>());
   const lastReverseAt = useRef(0);
   const lastCellKey = useRef<string | null>(null);
+  const nearSinceRef = useRef<Map<string, number>>(new Map());
+  const lastUploadAt = useRef(0);
+  const [roomMembers, setRoomMembers] = useState<Member[]>([]);
 
   // 起動時：未ログインなら匿名で
   useEffect(() => {
@@ -97,6 +100,41 @@ export default function getMyLocation({ route, navigation }: Props) {
       );
     return unsub;
   }, []);
+  // 追加: 10分以上100m以内の相手だけを表示対象にする
+  useEffect(() => {
+    if (!pos) return;
+    const now = Date.now();
+    const nearSince = nearSinceRef.current;
+
+    // 近接状態の更新
+    members.forEach(m => {
+      if (!m || m.id === uid) return;
+      const hasCoords = typeof m.lat === 'number' && typeof m.lon === 'number';
+      const updatedAtMs = m.updatedAt?.toDate?.()?.getTime?.() ?? 0;
+
+      // 最終更新が古すぎる相手は無効化（2分以上）
+      if (!hasCoords || now - updatedAtMs > 2 * 60 * 1000) {
+        nearSince.delete(m.id);
+        return;
+      }
+
+      const d = distanceMeters(pos.lat, pos.lon, m.lat!, m.lon!);
+      if (d <= 100) {
+        if (!nearSince.has(m.id)) nearSince.set(m.id, now);
+      } else {
+        nearSince.delete(m.id);
+      }
+    });
+
+    // 表示リストを確定（10分継続で採用）
+    const eligible = members.filter(m => {
+      if (m.id === uid) return false; // 自分は除外（必要ならtrueに）
+      const since = nearSince.get(m.id);
+      return since != null && now - since >= 10 * 60 * 1000;
+    });
+    setRoomMembers(eligible);
+  }, [pos, members, uid]);
+
   //   useEffect(() => {
   //   const ref = firestore().collection('rooms').doc(ROOM_ID).collection('members');
   //   const unsub = ref.onSnapshot((snap) => {
@@ -121,6 +159,26 @@ export default function getMyLocation({ route, navigation }: Props) {
       );
     console.log('upload', { lat, lon });
   }
+  function distanceMeters(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ) {
+    const R = 6371000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
   // 約100mグリッドでキャッシュキー
   const cellKey = (lat: number, lon: number) =>
     `${lat.toFixed(3)},${lon.toFixed(3)}`;
@@ -207,15 +265,21 @@ export default function getMyLocation({ route, navigation }: Props) {
         const lat = p.coords.latitude;
         const lon = p.coords.longitude;
         setPos({ lat, lon });
-        uploadLocation(lat, lon);
-        updatePlace(lat, lon);
+
+        // 1分間隔で送信（スロットル）
+        const now = Date.now();
+        if (now - lastUploadAt.current >= 60 * 1000) {
+          lastUploadAt.current = now;
+          uploadLocation(lat, lon);
+          updatePlace(lat, lon);
+        }
       },
       e => setError(`${e.code}: ${e.message}`),
       {
         enableHighAccuracy: true,
-        distanceFilter: 5,
-        interval: 3000,
-        fastestInterval: 1000,
+        distanceFilter: 0, // 距離に関係なく通知
+        interval: 60000, // 1分毎（Android）
+        fastestInterval: 30000, // 30秒以上は空ける
       },
     );
     setWatchId(id as unknown as number);
@@ -282,11 +346,13 @@ export default function getMyLocation({ route, navigation }: Props) {
       )}
       {error && <Text style={styles.err}>Error: {error}</Text>}
 
-      <Text style={styles.subtitle}>同じ部屋のメンバー</Text>
+      <Text style={styles.subtitle}>
+        同じ部屋のメンバー（10分以上・半径100m以内）
+      </Text>
       <FlatList
         style={{ width: '100%', marginTop: 8 }}
         contentContainerStyle={{ paddingHorizontal: 16 }}
-        data={members}
+        data={roomMembers}
         keyExtractor={item => item.id}
         renderItem={({ item }) => {
           const isMe = uid && item.id === uid;
