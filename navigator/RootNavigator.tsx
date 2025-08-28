@@ -3,11 +3,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../homeScreen';
 import GPScreen from '../gps/getGPS';
 import AccountScreen from '../account/makeAccount';
+import { ChatScreen } from '../ChatScreen';
 
 export type RootStackParamList = {
   Home: undefined;
   GPS: undefined;
   Account: undefined;
+  Chat: undefined;    
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -30,6 +32,11 @@ export default function RootNavigator() {
         name="Account"
         component={AccountScreen}
         options={{ title: 'Account' }}
+      />
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ title: 'Chat' }}
       />
     </Stack.Navigator>
   );
