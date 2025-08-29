@@ -137,7 +137,7 @@ export default function getMyLocation({ route, navigation }: Props) {
     const eligible = members.filter(m => {
       if (m.id === uid) return false;
       const since = nearSince.get(m.id);
-      return since != null && now - since >= 10 * 60 * 1000; // 10分
+      return since != null && now - since >= 10 * 60 * 1000; // 1.5分
     });
     setRoomMembers(eligible);
   }, [pos, members, uid]);
@@ -273,10 +273,26 @@ export default function getMyLocation({ route, navigation }: Props) {
         const lon = p.coords.longitude;
         setPos({ lat, lon });
 
-        // 1分間隔で送信（スロットル）
         const now = Date.now();
+        // 1分間隔で送信（このタイミングで過去1分の平均速度を計算）
         if (now - lastUploadAt.current >= 60 * 1000) {
+          // 速度[m/s] = 前回送信地点との距離 / 経過秒
+          let speedMps: number | null = null;
+          const prev = lastUploadSampleRef.current;
+          if (prev) {
+            const dt = (now - prev.t) / 1000;
+            if (dt > 0) {
+              const d = distanceMeters(lat, lon, prev.lat, prev.lon);
+              speedMps = d / dt;
+            }
+          }
+          // 歩行以下判定を更新（初回は prev なし → 判定不可 → false）
+          mySlowRef.current = speedMps != null && speedMps <= WALK_MAX_MPS;
+          setMySpeedMps(speedMps);
+
           lastUploadAt.current = now;
+          lastUploadSampleRef.current = { lat, lon, t: now };
+
           uploadLocation(lat, lon);
           updatePlace(lat, lon);
         }
@@ -285,8 +301,8 @@ export default function getMyLocation({ route, navigation }: Props) {
       {
         enableHighAccuracy: true,
         distanceFilter: 0, // 距離に関係なく通知
-        interval: 60000, // 1分毎（Android）
-        fastestInterval: 30000, // 30秒以上は空ける
+        interval: 60000, // 1分毎（Android目安）
+        fastestInterval: 30000, // 30秒以上
       },
     );
     setWatchId(id as unknown as number);
@@ -349,6 +365,13 @@ export default function getMyLocation({ route, navigation }: Props) {
           My Lon: {pos.lon.toFixed(6)}
           {'\n'}
           現在地: {place ?? '取得中…'}
+        </Text>
+      )}
+
+      {mySpeedMps != null && (
+        <Text style={styles.caption}>
+          自分の推定速度: {(mySpeedMps * 3.6).toFixed(1)} km/h（
+          {mySlowRef.current ? '徒歩以下' : '速い'}）
         </Text>
       )}
       {error && <Text style={styles.err}>Error: {error}</Text>}
