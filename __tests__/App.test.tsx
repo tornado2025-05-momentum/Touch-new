@@ -4,7 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import App from '../gps/getGPS';
+import App from '../gps/GetGPS';
 
 test('renders correctly', async () => {
   await ReactTestRenderer.act(() => {
