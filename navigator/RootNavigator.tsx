@@ -1,13 +1,16 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import HomeScreen from '../homeScreen';
-import GPScreen from '../gps/getGPS';
+import HomeScreen from '../HomeScreen';
+import GPSScreen from '../gps/getGPS';
+import BackgroundScreen from '../gps/Background';
 import AccountScreen from '../account/makeAccount';
 
 export type RootStackParamList = {
   Home: undefined;
   GPS: undefined;
+  Background: undefined;
   Account: undefined;
+
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -22,8 +25,13 @@ export default function RootNavigator() {
       />
       <Stack.Screen
         name="GPS"
-        component={GPScreen}
+        component={GPSScreen}
         options={{ title: 'GPS' }}
+      />
+      <Stack.Screen
+        name="Background"
+        component={BackgroundScreen}
+        options={{ title: 'Background' }}
       />
 
       <Stack.Screen
