@@ -178,7 +178,17 @@ export default function getMyLocation({ route, navigation }: Props) {
     const url =
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2` +
       `&lat=${lat}&lon=${lon}&accept-language=ja&email=you@example.com`;
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Touch-new/1.0 (you@example.com)',
+        'Accept-Language': 'ja',
+      },
+    });
+    if (!res.ok) {
+      throw new Error(
+        `Reverse geocode failed: ${res.status} ${res.statusText}`,
+      );
+    }
     const j = await res.json();
     const a = j.address || {};
     const name =
@@ -201,13 +211,13 @@ export default function getMyLocation({ route, navigation }: Props) {
     if (key === lastCellKey.current) return; // 同じ100mマスならスキップ
     if (now - lastReverseAt.current < 3000) return; // 3秒に1回まで
     lastReverseAt.current = now;
-    lastCellKey.current = key;
 
     try {
       const name = await reverseGeocode(lat, lon);
       setPlace(name);
-
       await setMyPlace(name, ROOM_ID);
+      // 成功時のみセルキーを確定（失敗時は次回同セルで再試行）
+      lastCellKey.current = key;
     } catch (e) {}
   }
 
@@ -313,7 +323,7 @@ export default function getMyLocation({ route, navigation }: Props) {
           {'\n'}
           My Lon: {pos.lon.toFixed(6)}
           {'\n'}
-          現在地: {place ?? '取得中…'}
+          現在地: {place ?? members.find(m => m.id === uid)?.place ?? '取得中…'}
         </Text>
       )}
       {error && <Text style={styles.err}>Error: {error}</Text>}
