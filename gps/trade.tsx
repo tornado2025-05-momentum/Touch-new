@@ -23,6 +23,7 @@ import {
   setMyText,
   uploadMyImage,
   getUserImageUrl,
+  getFirebaseEnv,
 } from '../firebase/sendRes';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Trade'>;
@@ -213,6 +214,9 @@ export default function getMyLocation({ route, navigation }: Props) {
     }
     try {
       setError(null);
+      // デバッグ: 現在のFirebase環境とアップロード先ログ
+      const env = getFirebaseEnv();
+      console.log('[upload] env', env);
       const { downloadURL } = await uploadMyImage(localImageUri);
       setMyImageUrl(downloadURL);
     } catch (e: any) {
