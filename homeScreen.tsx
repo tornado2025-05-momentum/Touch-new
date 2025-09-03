@@ -19,7 +19,7 @@ export default function HomeScreen({ navigation }: Props) {
       />
       <Button
         title="アカウント登録・ログイン"
-        onPress={() => navigation.navigate('Account')}
+        onPress={() => navigation.navigate('SignUp')}
       />
     </View>
   );

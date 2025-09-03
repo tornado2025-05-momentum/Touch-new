@@ -5,15 +5,46 @@ buildscript {
         compileSdkVersion = 36
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
-        kotlinVersion = "2.1.20"
+        // Kotlinのバージョンが正しいことを確認
+        kotlinVersion = "1.9.23"
     }
     
-    repositories { google(); mavenCentral() }
+    repositories {
+        google()
+        mavenCentral()
+    }
     dependencies {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
-        classpath("com.google.gms:google-services:4.4.2")   //追加
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
+
+// apply plugin は allprojects の前に移動させることが推奨されます
 apply plugin: "com.facebook.react.rootproject"
+
+// ★★★ ここからが追加/修正ブロック ★★★
+allprojects {
+    repositories {
+        maven {
+            // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+            url("$rootDir/../node_modules/react-native/android")
+        }
+        maven {
+            // Android JSC is installed from npm
+            url("$rootDir/../node_modules/jsc-android/dist")
+        }
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+    }
+
+    // This block forces all Kotlin compilation to target Java 8, resolving compatibility issues.
+    // ★ これがライブラリのビルドエラーを解決するための重要な一行です
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
+    }
+}
