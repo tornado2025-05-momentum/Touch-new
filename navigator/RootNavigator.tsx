@@ -13,10 +13,13 @@ import SelectInterestsScreen from '../account/SelectInterestsScreen';
 import RecentEventScreen from '../account/RecentEventScreen';
 import MusicSearchScreen from '../account/MusicSearchScreen';
 import SelectionConfirmationScreen from '../account/SelectionConfirmationScreen';
+import BookSearchScreen from '../account/BookSearchScreen';
+import BookDetailScreen from '../account/BookDetailScreen'
 import MainScreen from '../gps/MainScreen';
 import HomeScreen from '../HomeScreen';
 import GPSScreen from '../gps/getGPS';
 import BackgroundScreen from '../gps/Background'; 
+import type { FlowStep } from './flow';
 // --- ナビゲーションの型定義を更新 ---
 export type RootStackParamList = {
   // 認証フローの画面
@@ -27,9 +30,14 @@ export type RootStackParamList = {
   // プロフィール設定画面
   SetupProfile: undefined; //プロフィール画像とニックネーム
   SelectInterests: undefined; //交換する情報を選択
-  RecentEvent: undefined; //最近の出来事
-  MusicSearch: undefined;  //音楽
-  SelectionConfirmation: { track: { id: string; title: string; artist: string; imageUrl: string; } }; // trackオブジェクトを渡す
+  RecentEvent: { flow?: FlowStep[] } | undefined; //最近の出来事
+  MusicSearch: { flow?: FlowStep[] } | undefined;  //音楽
+  SelectionConfirmation: {
+    track: { id: string; title: string; artist: string; imageUrl: string; };
+    flow?: FlowStep[];
+  }; // trackオブジェクトを渡す
+  BookSearch: { flow?: FlowStep[] } | undefined; //本
+  BookDetail: { book: any; flow?: FlowStep[] };
 
   // ログイン後のメインアプリ画面
   Main: undefined;
@@ -59,6 +67,8 @@ const ProfileSetupStack = () => (
     <Stack.Screen name="RecentEvent" component={RecentEventScreen} options={{ title: '最近の出来事' }}/>
     <Stack.Screen name="MusicSearch" component={MusicSearchScreen} options={{ title: '楽曲検索' }}/>
     <Stack.Screen name="SelectionConfirmation" component={SelectionConfirmationScreen} options={{ title: '選択した楽曲' }}/>
+    <Stack.Screen name="BookSearch" component={BookSearchScreen} options={{ title: '本検索' }}/>
+    <Stack.Screen name="BookDetail" component={BookDetailScreen} options={{ title: '選択した本' }}/>
   </Stack.Navigator>
 );
 
@@ -85,13 +95,16 @@ export default function RootNavigator() {
         
         // ★★★ ここから下を修正 ★★★
         const userData = userDoc.data();
+  const exists =
+    typeof (userDoc as any).exists === 'function'
+      ? (userDoc as any).exists()
+      : !!(userDoc as any).exists;
 
-        // ユーザーデータが存在し、かつ、そのデータに 'interests' というキーが存在するかをチェック
-        if (userDoc.exists && userData && userData.interests) {
-          setProfileComplete(true);
-        } else {
-          setProfileComplete(false);
-        }
+  const hasInterests =
+    Array.isArray((userData as any)?.interests) &&
+    (userData as any).interests.length > 0;
+
+  setProfileComplete(exists && hasInterests);
         // ★★★ ここまで ★★★
 
       } else {
