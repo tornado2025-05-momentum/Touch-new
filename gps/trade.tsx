@@ -43,6 +43,7 @@ export default function getMyLocation({ route, navigation }: Props) {
   const [myText, setMyTextState] = useState<string>('');
   const [localImageUri, setLocalImageUri] = useState<string | null>(null);
   const [myImageUrl, setMyImageUrl] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({});
   const placeCache = useRef(new Map<string, string>());
   const lastReverseAt = useRef(0);
   const lastCellKey = useRef<string | null>(null);
@@ -67,6 +68,27 @@ export default function getMyLocation({ route, navigation }: Props) {
       mounted = false;
     };
   }, [uid]);
+
+  // メンバー一覧から未取得の画像URLを取得してキャッシュ
+  useEffect(() => {
+    const ids = members.map(m => m.id).filter(Boolean);
+    const need = ids.filter(id => !(id in imageUrls));
+    if (need.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      for (const id of need) {
+        try {
+          const url = await getUserImageUrl(id);
+          if (!cancelled) setImageUrls(prev => ({ ...prev, [id]: url }));
+        } catch {
+          if (!cancelled) setImageUrls(prev => ({ ...prev, [id]: null }));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [members, imageUrls]);
 
   // 権限リクエスト（Android）
   useEffect(() => {
@@ -219,6 +241,7 @@ export default function getMyLocation({ route, navigation }: Props) {
       console.log('[upload] env', env);
       const { downloadURL } = await uploadMyImage(localImageUri);
       setMyImageUrl(downloadURL);
+      if (uid) setImageUrls(prev => ({ ...prev, [uid]: downloadURL }));
     } catch (e: any) {
       setError(`画像アップロード失敗: ${e?.message || String(e)}`);
     }
@@ -298,6 +321,9 @@ export default function getMyLocation({ route, navigation }: Props) {
           const timeStr = item.updatedAt?.toDate?.()
             ? item.updatedAt.toDate().toLocaleTimeString()
             : '-';
+          const url = isMe
+            ? myImageUrl ?? imageUrls[item.id]
+            : imageUrls[item.id];
           return (
             <View style={styles.memberRow}>
               <View style={styles.memberTop}>
@@ -306,46 +332,26 @@ export default function getMyLocation({ route, navigation }: Props) {
                 </Text>
                 <Text style={styles.memberTime}>{timeStr}</Text>
               </View>
-
-              {isMe ? (
-                <View style={styles.memberBodyRow}>
-                  <View style={styles.thumbnailWrapper}>
-                    {myImageUrl ? (
-                      <Image
-                        source={{ uri: myImageUrl }}
-                        style={styles.thumbnailImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.thumbnailWrapper,
-                          { alignItems: 'center', justifyContent: 'center' },
-                        ]}
-                      >
-                        <Text style={styles.caption}>No image</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.memberPlace}>
-                      すれ違い場所: {item.place ?? '取得中…'}
-                    </Text>
-                    <Text style={styles.memberText}>
-                      テキスト:{' '}
-                      {item.text?.trim()?.length ? item.text : '未入力'}
-                    </Text>
-                    <Text style={styles.memberCoords}>
-                      lat:
-                      {typeof item.lat === 'number' ? item.lat.toFixed(5) : '-'}
-                      {'  '}
-                      lon:
-                      {typeof item.lon === 'number' ? item.lon.toFixed(5) : '-'}
-                    </Text>
-                  </View>
+              <View style={styles.memberBodyRow}>
+                <View style={styles.thumbnailWrapper}>
+                  {url ? (
+                    <Image
+                      source={{ uri: url }}
+                      style={styles.thumbnailImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.thumbnailWrapper,
+                        { alignItems: 'center', justifyContent: 'center' },
+                      ]}
+                    >
+                      <Text style={styles.caption}>No image</Text>
+                    </View>
+                  )}
                 </View>
-              ) : (
-                <>
+                <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.memberPlace}>
                     すれ違い場所: {item.place ?? '取得中…'}
                   </Text>
@@ -359,8 +365,8 @@ export default function getMyLocation({ route, navigation }: Props) {
                     lon:
                     {typeof item.lon === 'number' ? item.lon.toFixed(5) : '-'}
                   </Text>
-                </>
-              )}
+                </View>
+              </View>
             </View>
           );
         }}
