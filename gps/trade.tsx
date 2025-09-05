@@ -32,6 +32,9 @@ type Pos = { lat: number; lon: number };
 
 const ROOM_ID = 'demo-room-1'; // 全端末で同じにする
 
+// 運用用の連絡先メールアドレス（Nominatim API要件）
+const CONTACT_EMAIL = 'your-contact@email.com';
+
 import type { Member } from '../firebase/sendRes'; // 型を共有
 
 export default function getMyLocation({ route, navigation }: Props) {
@@ -122,7 +125,7 @@ export default function getMyLocation({ route, navigation }: Props) {
 
     const url =
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2` +
-      `&lat=${lat}&lon=${lon}&accept-language=ja&email=you@example.com`;
+      `&lat=${lat}&lon=${lon}&accept-language=ja&email=${CONTACT_EMAIL}`;
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Touch-new/1.0 (you@example.com)',
@@ -157,13 +160,43 @@ export default function getMyLocation({ route, navigation }: Props) {
     if (now - lastReverseAt.current < 3000) return; // 3秒に1回まで
     lastReverseAt.current = now;
 
+    // 1) 逆ジオコーディング
+    let name: string | null = null;
     try {
-      const name = await reverseGeocode(lat, lon);
+      name = await reverseGeocode(lat, lon);
       setPlace(name);
-      await setMyPlace(name, ROOM_ID);
-      // 成功時のみセルキーを確定（失敗時は次回同セルで再試行）
-      lastCellKey.current = key;
-    } catch (e) {}
+    } catch (e) {
+      console.error('Reverse geocoding failed:', e);
+      setError(
+        `逆ジオコーディング失敗: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      return; // ここで終了（書き込みは行わない）
+    }
+
+    // 2) Firestore への place 書き込み（失敗しても致命的ではない）
+    try {
+      if (name) {
+        await setMyPlace(name, ROOM_ID);
+        // 成功時のみセルキーを確定（失敗時は次回同セルで再試行）
+        lastCellKey.current = key;
+      }
+    } catch (e: any) {
+      console.warn('setMyPlace failed:', e);
+      // permission-denied などは画面に分かりやすく表示
+      const msg = e?.message || String(e);
+      const code = e?.code || '';
+      if (
+        code === 'firestore/permission-denied' ||
+        msg.includes('permission')
+      ) {
+        setError(
+          'Firestore への書き込み権限がありません（place は端末内のみ更新）',
+        );
+      } else {
+        setError(`場所の保存に失敗: ${msg}`);
+      }
+      // セルキーは確定しない（次回リトライする）
+    }
   }
 
   // 1回取得
@@ -212,7 +245,7 @@ export default function getMyLocation({ route, navigation }: Props) {
 
   const stopWatch = () => {
     if (watchId != null) {
-      Geolocation.clearWatch(watchId);
+      Geolocation.clearWatch(watchId as number);
       setWatchId(null);
     }
   };

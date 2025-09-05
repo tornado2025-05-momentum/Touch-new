@@ -138,7 +138,9 @@ export async function uploadMyImage(localUri: string): Promise<{
   // 念のためIDトークンを強制リフレッシュ（エミュレータの時刻ズレなど対策）
   try {
     await auth().currentUser?.getIdToken(true);
-  } catch {}
+  } catch (error) {
+    console.warn('Failed to refresh ID token:', error);
+  }
   const path = storagePathForUserImage(uid);
   const ref = storage().ref(path);
   // contentType を簡易推定
