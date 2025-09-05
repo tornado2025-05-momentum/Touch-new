@@ -14,10 +14,6 @@ export default function HomeScreen({ navigation }: Props) {
         title="Go to Account"
         onPress={() => navigation.navigate('Account')}
       />
-      <Button
-        title="Go to Trade"
-        onPress={() => navigation.navigate('Trade')}
-      />
     </View>
   );
 }
