@@ -137,7 +137,7 @@ export default function getMyLocation({ route, navigation }: Props) {
     const eligible = members.filter(m => {
       if (m.id === uid) return false;
       const since = nearSince.get(m.id);
-      return since != null && now - since >= 10 * 60 * 1000; // 1.5分
+      return since != null && now - since >= 10 * 60 * 1000; // 10分
     });
     setRoomMembers(eligible);
   }, [pos, members, uid]);

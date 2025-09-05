@@ -420,7 +420,7 @@ export default function getMyLocation({ route, navigation }: Props) {
         <View style={{ marginTop: 8 }}>
           <Button
             title="テキストだけ送信"
-            onPress={() => setMyText(myText.trim())}
+            onPress={() => setMyTextState(myText.trim())}
           />
         </View>
       </View>
