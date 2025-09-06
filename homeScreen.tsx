@@ -18,6 +18,10 @@ export default function HomeScreen({ navigation }: Props) {
         title="Go to Trade"
         onPress={() => navigation.navigate('Trade')}
       />
+      <Button
+        title="Go to Profile"
+        onPress={() => navigation.navigate('Profile')}
+      />
     </View>
   );
 }
