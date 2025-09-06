@@ -15,6 +15,7 @@ import MusicSearchScreen from '../account/MusicSearchScreen';
 import SelectionConfirmationScreen from '../account/SelectionConfirmationScreen';
 import BookSearchScreen from '../account/BookSearchScreen';
 import BookDetailScreen from '../account/BookDetailScreen'
+import AddressInputScreen from '../account/AddressInputScreen'
 import MainScreen from '../gps/MainScreen';
 import HomeScreen from '../HomeScreen';
 import GPSScreen from '../gps/getGPS';
@@ -38,6 +39,7 @@ export type RootStackParamList = {
   }; // trackオブジェクトを渡す
   BookSearch: { flow?: FlowStep[] } | undefined; //本
   BookDetail: { book: any; flow?: FlowStep[] };
+  AddressInput: undefined;  //住所入力
 
   // ログイン後のメインアプリ画面
   Main: undefined;
@@ -69,6 +71,7 @@ const ProfileSetupStack = () => (
     <Stack.Screen name="SelectionConfirmation" component={SelectionConfirmationScreen} options={{ title: '選択した楽曲' }}/>
     <Stack.Screen name="BookSearch" component={BookSearchScreen} options={{ title: '本検索' }}/>
     <Stack.Screen name="BookDetail" component={BookDetailScreen} options={{ title: '選択した本' }}/>
+    <Stack.Screen name="AddressInput" component={AddressInputScreen} options={{ title: '居住地' }} />
   </Stack.Navigator>
 );
 

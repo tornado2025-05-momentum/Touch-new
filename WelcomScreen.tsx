@@ -1,17 +1,23 @@
 import React from 'react';
-import { StyleSheet, Text, View, Pressable, StatusBar, Image } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+  StatusBar,
+  Image,
+} from 'react-native';
 import LinearGradientComponent from 'react-native-linear-gradient';
-
-// ★ 修正点 1: ナビゲーション用の型をインポートします
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from './navigator/RootNavigator'; // ご自身のRootNavigator.tsxへのパスを指定してください
 
-// この画面が受け取るPropsの型を定義します
-type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
+// Assuming you have a RootStackParamList defined for your navigator
+// Example: export type RootStackParamList = { Welcome: undefined; SignUp: undefined; ... };
+import type { RootStackParamList } from './navigator/RootNavigator';
 
+// Define the type for the screen's props
+type WelcomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
-// ★ 修正点 2: Propsから { navigation } を受け取るように変更します
-const WelcomeScreen = ({ navigation }: Props) => {
+const WelcomeScreen = ({ navigation }: WelcomeScreenProps) => {
   return (
     <LinearGradientComponent
       colors={['#f0f4f8', '#ffffff']}
@@ -19,27 +25,29 @@ const WelcomeScreen = ({ navigation }: Props) => {
     >
       <StatusBar barStyle="dark-content" />
 
-      <Image
-        source={require('./assets/baburu.png')} 
-        style={styles.backgroundImage}
-      />
+      <View style={styles.imageContainer}>
+        <Image
+          source={require('./assets/baburu.png')}
+          style={styles.backgroundImage}
+        />
+      </View>
 
       <View style={styles.content}>
         <View style={styles.textContainer}>
-            <Text style={styles.title}>Touch new へようこそ</Text>
-            <Text style={styles.description}>
-                サービスの説明サービスの説明サービスの説明サービスの説明サービスの説明サービスの説明サービスの説明サービスの説明
-            </Text>
+          <Text style={styles.title}>Touch new へようこそ</Text>
+          <Text style={styles.description}>
+            {'偶然と出会いにいこう。\n日常のすれ違いを価値観の交換に。'}
+          </Text>
         </View>
 
         <View style={styles.buttonContainer}>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={() => navigation.navigate('SignUp')}
-            >
-                <Text style={styles.primaryButtonText}>新規登録</Text>
-            </Pressable>
-            <Pressable
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate('SignUp')} // Replace 'SignUp' with your actual screen name
+          >
+            <Text style={styles.primaryButtonText}>新規登録</Text>
+          </Pressable>
+          <Pressable
               style={styles.secondaryButton}
               onPress={() => navigation.navigate('Login')}
             >
@@ -47,34 +55,35 @@ const WelcomeScreen = ({ navigation }: Props) => {
             </Pressable>
         </View>
       </View>
-
     </LinearGradientComponent>
   );
 };
 
-// スタイル定義は変更ありません
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  imageContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'flex-end',
   },
   backgroundImage: {
-    position: 'absolute',
-    top: 40,
     width: '100%',
-    height: 450,
+    height: 400,
     resizeMode: 'contain',
   },
   content: {
     width: '100%',
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 60,
+    paddingTop: 20,
   },
   textContainer: {
     alignItems: 'flex-start',
     width: '100%',
-    marginBottom: 60,
+    marginBottom: 70,
   },
   title: {
     fontSize: 26,
@@ -106,8 +115,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  secondaryButton: {
+  },secondaryButton: {
     backgroundColor: '#FFFFFF',
     paddingVertical: 16,
     borderRadius: 12,
@@ -120,6 +128,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
 });
 
 export default WelcomeScreen;

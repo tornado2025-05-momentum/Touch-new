@@ -134,13 +134,11 @@ export default function GetMyLocation({ route, navigation }: Props) {
 
     const url =
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2` +
-      `&lat=${lat}&lon=${lon}&accept-language=ja&email=you@example.com`;
+      `&lat=${lat}&lon=${lon}&accept-language=ja&email=san-j24015@sangi.com`;
     const res = await fetch(url);
-    const j = await res.json();
-
-
-
+    const j = (await res.json()) as { address?: any }; // ← 型アサーション追加
     const a = j.address || {};
+
     const name =
       a.railway ||          // 駅名
       a.amenity ||          // 公共施設名 (レストランなど)

@@ -69,3 +69,5 @@ yarn-error.log
 
 # Firebase (Android) - keep credentials out of Git
 /android/app/google-services.json
+
+.env

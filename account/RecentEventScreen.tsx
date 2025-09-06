@@ -4,6 +4,8 @@ import {
   SafeAreaView, View, Text, TextInput, StyleSheet, Pressable,
   Alert, ActivityIndicator, Image, TouchableOpacity, KeyboardAvoidingView, Platform,
 } from 'react-native';
+// SVGをインポート
+import { Svg, Path } from 'react-native-svg';
 import { launchImageLibrary } from 'react-native-image-picker';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
@@ -89,7 +91,21 @@ export default function RecentEventScreen({ navigation, route }: Props) {
             onPress={handleNext}
             disabled={disabled}
           >
-            {uploading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.nextButtonText}>→</Text>}
+            {uploading 
+              ? <ActivityIndicator color="#FFFFFF" /> 
+              : (
+                // テキストの矢印をSVGアイコンに変更
+                <Svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+                  <Path 
+                    d="M9 5l7 7-7 7"
+                    stroke="white" 
+                    strokeWidth="3.5"
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                  />
+                </Svg>
+              )
+            }
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -116,5 +132,5 @@ const styles = StyleSheet.create({
     width: 60, height: 60, borderRadius: 30, backgroundColor: '#0047AB', justifyContent: 'center', alignItems: 'center',
   },
   nextButtonDisabled: { backgroundColor: '#A0A0A0' },
-  nextButtonText: { color: 'white', fontSize: 24 },
+  // nextButtonTextは不要になったため削除しました
 });

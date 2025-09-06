@@ -11,12 +11,14 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
+// SVGをインポート
+import { Svg, Path } from 'react-native-svg';
 import { launchImageLibrary } from 'react-native-image-picker';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigator/RootNavigator'; // パスを確認・修正してください
+import type { RootStackParamList } from '../navigator/RootNavigator'; 
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
@@ -94,18 +96,30 @@ const SetupProfileScreen = ({ navigation }: Props) => {
           value={nickname}
           onChangeText={setNickname}
         />
-
+      </View>
+      
+      {/* フローティング矢印ボタンに変更 */}
+      <View style={styles.footer}>
         <Pressable
-          style={[styles.primaryButton, isButtonDisabled && styles.disabledButton]}
-          onPress={handleCreateProfile}
-          disabled={isButtonDisabled}>
-          {uploading ? (
+            style={[styles.nextButton, isButtonDisabled && styles.nextButtonDisabled]}
+            onPress={handleCreateProfile}
+            disabled={isButtonDisabled}>
+            {uploading ? (
             <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.primaryButtonText}>作成する</Text>
-          )}
+            ) : (
+            <Svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+                <Path 
+                    d="M9 5l7 7-7 7"
+                    stroke="white" 
+                    strokeWidth="3.5"
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                />
+            </Svg>
+            )}
         </Pressable>
       </View>
+
     </SafeAreaView>
   );
 };
@@ -114,10 +128,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f0f4f8',
-        justifyContent: 'center',
     },
     content: {
+        flex: 1,
+        justifyContent: 'center',
         paddingHorizontal: 24,
+        paddingBottom: 80, // ボタンに隠れないように余白を追加
     },
     title: {
         fontSize: 24,
@@ -156,18 +172,25 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 32,
     },
-    primaryButton: {
+    footer: {
+        position: 'absolute',
+        bottom: 24,
+        right: 24,
+    },
+    nextButton: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         backgroundColor: '#0047AB',
-        paddingVertical: 16,
-        borderRadius: 12,
+        justifyContent: 'center',
         alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
-    primaryButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    disabledButton: {
+    nextButtonDisabled: {
         backgroundColor: '#A0A0A0',
     },
 });
