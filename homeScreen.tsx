@@ -13,6 +13,11 @@ export default function HomeScreen({ navigation }: Props) {
       <Button
         title="Go to Account"
         onPress={() => navigation.navigate('Account')}
+        
+      />
+      <Button
+        title="Go to Chat"
+        onPress={() => navigation.navigate('Chat')}
       />
       <Button
         title="Go to Trade"
