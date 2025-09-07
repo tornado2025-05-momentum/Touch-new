@@ -15,6 +15,7 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigator/RootNavigator';
+import { recordEncounter } from '../firebase/firebase_system';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GPS'>;
 
@@ -45,6 +46,8 @@ export default function getMyLocation({ route, navigation }: Props) {
   const nearSinceRef = useRef<Map<string, number>>(new Map());
   const lastUploadAt = useRef(0);
   const [roomMembers, setRoomMembers] = useState<Member[]>([]);
+  // 同一セッションで記録済みの peer/day を避けるためのローカル記録
+  const loggedTodayRef = useRef<Set<string>>(new Set());
   const lastUploadSampleRef = useRef<{
     lat: number;
     lon: number;
@@ -140,6 +143,22 @@ export default function getMyLocation({ route, navigation }: Props) {
       return since != null && now - since >= 10 * 60 * 1000; // 10分
     });
     setRoomMembers(eligible);
+    // 遭遇確定者を記録（当日同一peerは一度だけ）
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = `${today.getMonth() + 1}`.padStart(2, '0');
+    const d = `${today.getDate()}`.padStart(2, '0');
+    const dayKey = `${y}-${m}-${d}`;
+    const placeName = members.find(m => m.id === uid)?.place ?? null;
+    eligible.forEach(e => {
+      const key = `${dayKey}_${e.id}`;
+      if (!loggedTodayRef.current.has(key)) {
+        loggedTodayRef.current.add(key);
+        recordEncounter(e.id, ROOM_ID, placeName).catch(err =>
+          console.warn('recordEncounter failed:', err?.message || err),
+        );
+      }
+    });
   }, [pos, members, uid]);
 
   //   useEffect(() => {

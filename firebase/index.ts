@@ -15,3 +15,4 @@ export {
   getUserImageUrl,
 } from './storage';
 export { getFirebaseEnv } from './debug';
+export { recordEncounter, hasMetPeerEver, hasMetPeerToday } from './encounters';
