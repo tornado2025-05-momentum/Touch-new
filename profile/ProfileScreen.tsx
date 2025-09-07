@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Button } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  Button,
+} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigator/RootNavigator';
@@ -36,31 +44,82 @@ const initialProfile: UserProfile = {
 };
 
 const dummyContent: ContentItem[] = [
-  { id: '1', type: 'image', uri: 'https://placeimg.com/150/150/nature', text: 'Radを見るために山口まで行っ...', category: 'music' },
-  { id: '2', type: 'image', uri: 'https://placeimg.com/150/150/arch', text: 'たんぱく質の...', category: 'books' },
-  { id: '3', type: 'image', uri: 'https://placeimg.com/150/150/tech', text: '何か一言...', category: 'recent' },
-  { id: '4', type: 'image', uri: 'https://placeimg.com/150/150/people', text: '別の写真', category: 'music' },
-  { id: '5', type: 'image', uri: 'https://placeimg.com/150/150/nature', text: '別の写真2', category: 'books' },
-  { id: '6', type: 'image', uri: 'https://placeimg.com/150/150/tech', text: '別の写真3', category: 'recent' },
+  {
+    id: '1',
+    type: 'image',
+    uri: 'https://placeimg.com/150/150/nature',
+    text: 'Radを見るために山口まで行っ...',
+    category: 'music',
+  },
+  {
+    id: '2',
+    type: 'image',
+    uri: 'https://placeimg.com/150/150/arch',
+    text: 'たんぱく質の...',
+    category: 'books',
+  },
+  {
+    id: '3',
+    type: 'image',
+    uri: 'https://placeimg.com/150/150/tech',
+    text: '何か一言...',
+    category: 'recent',
+  },
+  {
+    id: '4',
+    type: 'image',
+    uri: 'https://placeimg.com/150/150/people',
+    text: '別の写真',
+    category: 'music',
+  },
+  {
+    id: '5',
+    type: 'image',
+    uri: 'https://placeimg.com/150/150/nature',
+    text: '別の写真2',
+    category: 'books',
+  },
+  {
+    id: '6',
+    type: 'image',
+    uri: 'https://placeimg.com/150/150/tech',
+    text: '別の写真3',
+    category: 'recent',
+  },
 ];
 
 const TodayConnectionsIcon = () => (
   <View style={[styles.statIconBackground, { backgroundColor: '#E4F4F8' }]}>
-    <Image source={{ uri: 'https://img.icons8.com/ios-filled/50/4B87C2/user.png' }} style={[styles.statIcon, { tintColor: '#4B87C2' }]} />
+    <Image
+      source={{ uri: 'https://img.icons8.com/ios-filled/50/4B87C2/user.png' }}
+      style={[styles.statIcon, { tintColor: '#4B87C2' }]}
+    />
   </View>
 );
 
 const TotalConnectionsIcon = () => (
   <View style={[styles.statIconBackground, { backgroundColor: '#F0EAF8' }]}>
-    <Image source={{ uri: 'https://img.icons8.com/ios-filled/50/8D64A2/user.png' }} style={[styles.statIcon, { tintColor: '#8D64A2' }]} />
+    <Image
+      source={{ uri: 'https://img.icons8.com/ios-filled/50/8D64A2/user.png' }}
+      style={[styles.statIcon, { tintColor: '#8D64A2' }]}
+    />
   </View>
 );
 
-const ClockIcon = () => <Image source={{ uri: 'https://img.icons8.com/material-rounded/24/999999/clock.png' }} style={{ width: 12, height: 12, tintColor: '#999' }} />;
+const ClockIcon = () => (
+  <Image
+    source={{
+      uri: 'https://img.icons8.com/material-rounded/24/999999/clock.png',
+    }}
+    style={{ width: 12, height: 12, tintColor: '#999' }}
+  />
+);
 
 export default function ProfileScreen({ navigation, route }: Props) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'music' | 'books' | 'recent'>('all');
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'music' | 'books' | 'recent'
+  >('all');
   const [content, setContent] = useState<ContentItem[]>([]);
 
   useEffect(() => {
@@ -68,20 +127,23 @@ export default function ProfileScreen({ navigation, route }: Props) {
       const user = auth().currentUser;
       if (user) {
         const userRef = firestore().collection('users').doc(user.uid);
-        const unsubscribe = userRef.onSnapshot(docSnapshot => {
-          if (docSnapshot.exists) {
-            const profileData = docSnapshot.data() as UserProfile;
-            setUserProfile({ ...initialProfile, ...profileData });
-            if (profileData.content) {
-              setContent(profileData.content);
+        const unsubscribe = userRef.onSnapshot(
+          docSnapshot => {
+            if (docSnapshot.exists()) {
+              const profileData = docSnapshot.data() as UserProfile;
+              setUserProfile({ ...initialProfile, ...profileData });
+              if (profileData.content) {
+                setContent(profileData.content);
+              }
+            } else {
+              setUserProfile(initialProfile);
             }
-          } else {
+          },
+          err => {
+            console.error('Firestore listen failed: ', err);
             setUserProfile(initialProfile);
-          }
-        }, err => {
-          console.error("Firestore listen failed: ", err);
-          setUserProfile(initialProfile);
-        });
+          },
+        );
 
         const navUnsubscribe = navigation.addListener('focus', () => {
           if (route.params?.updatedProfile) {
@@ -111,13 +173,14 @@ export default function ProfileScreen({ navigation, route }: Props) {
     );
   }
 
-  const filteredContent = activeTab === 'all'
-    ? content
-    : content.filter(item => item.category === activeTab);
+  const filteredContent =
+    activeTab === 'all'
+      ? content
+      : content.filter(item => item.category === activeTab);
 
   return (
     <LinearGradient
-      colors={["#DEEEFF", "#E9F4FF", "#F9FCFF", "#FFFFFF"]}
+      colors={['#DEEEFF', '#E9F4FF', '#F9FCFF', '#FFFFFF']}
       locations={[0, 0.3, 0.7, 1]}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
@@ -125,20 +188,25 @@ export default function ProfileScreen({ navigation, route }: Props) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Image source={{ uri: 'https://img.icons8.com/ios/50/back--v1.png' }} style={styles.backIcon} /> 
+            <Image
+              source={{ uri: 'https://img.icons8.com/ios/50/back--v1.png' }}
+              style={styles.backIcon}
+            />
           </TouchableOpacity>
-          
+
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.chatButton}
               onPress={() => navigation.navigate('Chat')}
             >
-              <Image 
-                source={{ uri: 'https://img.icons8.com/material-outlined/24/000000/chat.png' }}
+              <Image
+                source={{
+                  uri: 'https://img.icons8.com/material-outlined/24/000000/chat.png',
+                }}
                 style={styles.chatIcon}
               />
               <Text style={styles.chatButtonText}>Chat</Text>
@@ -147,10 +215,20 @@ export default function ProfileScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.profileInfoContainer}>
-          <TouchableOpacity onPress={() => navigation.navigate('EditProfile', { currentProfile: userProfile, currentContent: content })}>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('EditProfile', {
+                currentProfile: userProfile,
+                currentContent: content,
+              })
+            }
+          >
             <Image
               style={styles.avatar}
-              source={{ uri: userProfile.avatarUrl || 'https://placeimg.com/200/200/any' }}
+              source={{
+                uri:
+                  userProfile.avatarUrl || 'https://placeimg.com/200/200/any',
+              }}
             />
           </TouchableOpacity>
           <View style={styles.headerText}>
@@ -166,20 +244,29 @@ export default function ProfileScreen({ navigation, route }: Props) {
           <View style={styles.statCard}>
             <TodayConnectionsIcon />
             <Text style={styles.statLabel}>今日出会った回数</Text>
-            <Text style={styles.statValue}>{userProfile.todayConnections}回</Text>
+            <Text style={styles.statValue}>
+              {userProfile.todayConnections}回
+            </Text>
           </View>
 
           <View style={styles.statCard}>
             <TotalConnectionsIcon />
             <Text style={styles.statLabel}>今まで出会った回数</Text>
-            <Text style={styles.statValue}>{userProfile.totalConnections}回</Text>
+            <Text style={styles.statValue}>
+              {userProfile.totalConnections}回
+            </Text>
           </View>
         </View>
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.editProfileButton}
-            onPress={() => navigation.navigate('EditProfile', { currentProfile: userProfile, currentContent: content })}
+            onPress={() =>
+              navigation.navigate('EditProfile', {
+                currentProfile: userProfile,
+                currentContent: content,
+              })
+            }
           >
             <Text style={styles.editProfileButtonText}>プロフィールを編集</Text>
           </TouchableOpacity>
@@ -190,25 +277,33 @@ export default function ProfileScreen({ navigation, route }: Props) {
             style={[styles.tab, activeTab === 'all' && styles.activeTab]}
             onPress={() => setActiveTab('all')}
           >
-            <Text style={activeTab === 'all' && styles.activeTabText}>すべて</Text>
+            <Text style={activeTab === 'all' && styles.activeTabText}>
+              すべて
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'music' && styles.activeTab]}
             onPress={() => setActiveTab('music')}
           >
-            <Text style={activeTab === 'music' && styles.activeTabText}>音楽</Text>
+            <Text style={activeTab === 'music' && styles.activeTabText}>
+              音楽
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'books' && styles.activeTab]}
             onPress={() => setActiveTab('books')}
           >
-            <Text style={activeTab === 'books' && styles.activeTabText}>本</Text>
+            <Text style={activeTab === 'books' && styles.activeTabText}>
+              本
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'recent' && styles.activeTab]}
             onPress={() => setActiveTab('recent')}
           >
-            <Text style={activeTab === 'recent' && styles.activeTabText}>最近の出来事</Text>
+            <Text style={activeTab === 'recent' && styles.activeTabText}>
+              最近の出来事
+            </Text>
           </TouchableOpacity>
         </View>
 
