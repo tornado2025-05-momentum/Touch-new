@@ -18,7 +18,7 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigator/RootNavigator'; 
+import type { RootStackParamList } from '../navigator/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
@@ -43,8 +43,8 @@ const SetupProfileScreen = ({ navigation }: Props) => {
     const user = auth().currentUser;
     if (!user) return;
     if (!nickname.trim()) {
-        Alert.alert('エラー', 'ニックネームを入力してください。');
-        return;
+      Alert.alert('エラー', 'ニックネームを入力してください。');
+      return;
     }
 
     setUploading(true);
@@ -57,14 +57,23 @@ const SetupProfileScreen = ({ navigation }: Props) => {
         photoURL = await reference.getDownloadURL();
       }
 
-      await firestore().collection('users').doc(user.uid).set({
-        nickname: nickname.trim(),
-        photoURL: photoURL,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-      });
-      
-      navigation.navigate('SelectInterests');
+      // ProfileScreen が参照するスキーマに合わせて保存
+      await firestore().collection('users').doc(user.uid).set(
+        {
+          name: nickname.trim(),
+          nickname: nickname.trim(), // 互換フィールド（将来削除可）
+          avatarUrl: photoURL,
+          photoURL: photoURL, // 互換フィールド（将来削除可）
+          affiliation: '',
+          todayConnections: 0,
+          totalConnections: 0,
+          totalConnectionPlace: '',
+          createdAt: firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
 
+      navigation.navigate('SelectInterests');
     } catch (e) {
       console.error(e);
       Alert.alert('エラー', 'プロフィールの作成に失敗しました。');
@@ -80,7 +89,10 @@ const SetupProfileScreen = ({ navigation }: Props) => {
       <View style={styles.content}>
         <Text style={styles.title}>アカウント情報を入力</Text>
 
-        <TouchableOpacity style={styles.avatarPicker} onPress={handleChoosePhoto}>
+        <TouchableOpacity
+          style={styles.avatarPicker}
+          onPress={handleChoosePhoto}
+        >
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.avatarImage} />
           ) : (
@@ -97,102 +109,105 @@ const SetupProfileScreen = ({ navigation }: Props) => {
           onChangeText={setNickname}
         />
       </View>
-      
+
       {/* フローティング矢印ボタンに変更 */}
       <View style={styles.footer}>
         <Pressable
-            style={[styles.nextButton, isButtonDisabled && styles.nextButtonDisabled]}
-            onPress={handleCreateProfile}
-            disabled={isButtonDisabled}>
-            {uploading ? (
+          style={[
+            styles.nextButton,
+            isButtonDisabled && styles.nextButtonDisabled,
+          ]}
+          onPress={handleCreateProfile}
+          disabled={isButtonDisabled}
+        >
+          {uploading ? (
             <ActivityIndicator color="#FFFFFF" />
-            ) : (
+          ) : (
             <Svg width="30" height="30" viewBox="0 0 24 24" fill="none">
-                <Path 
-                    d="M9 5l7 7-7 7"
-                    stroke="white" 
-                    strokeWidth="3.5"
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                />
+              <Path
+                d="M9 5l7 7-7 7"
+                stroke="white"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </Svg>
-            )}
+          )}
         </Pressable>
       </View>
-
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f0f4f8',
-    },
-    content: {
-        flex: 1,
-        justifyContent: 'center',
-        paddingHorizontal: 24,
-        paddingBottom: 80, // ボタンに隠れないように余白を追加
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1C1C1E',
-        marginBottom: 32,
-        textAlign: 'center',
-    },
-    avatarPicker: {
-        alignSelf: 'center',
-        marginBottom: 24,
-    },
-    avatarImage: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-    },
-    avatarPlaceholder: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: '#E0E0E0',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarPlaceholderText: {
-        fontSize: 40,
-        color: '#FFFFFF',
-    },
-    input: {
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#B0B0B0',
-        paddingHorizontal: 8,
-        paddingVertical: 12,
-        fontSize: 16,
-        marginBottom: 32,
-    },
-    footer: {
-        position: 'absolute',
-        bottom: 24,
-        right: 24,
-    },
-    nextButton: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#0047AB',
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-    },
-    nextButtonDisabled: {
-        backgroundColor: '#A0A0A0',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f4f8',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 80, // ボタンに隠れないように余白を追加
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1C1C1E',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  avatarPicker: {
+    alignSelf: 'center',
+    marginBottom: 24,
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#E0E0E0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarPlaceholderText: {
+    fontSize: 40,
+    color: '#FFFFFF',
+  },
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#B0B0B0',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginBottom: 32,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+  },
+  nextButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#0047AB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  nextButtonDisabled: {
+    backgroundColor: '#A0A0A0',
+  },
 });
 
 export default SetupProfileScreen;

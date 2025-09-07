@@ -136,6 +136,16 @@ const ProfileSetupStack = () => (
       component={AddressInputScreen}
       options={{ title: '居住地' }}
     />
+    {/**
+     * AddressInputScreen からの navigation.replace('HomeTabs') を有効にするため、
+     * 同一スタック内に HomeTabs を登録しておく。
+     * （最終的には Root レベルの条件分岐で AppStack に切り替わる設計でも問題なし）
+     */}
+    <Stack.Screen
+      name="HomeTabs"
+      component={HomeTabs}
+      options={{ headerShown: false }}
+    />
   </Stack.Navigator>
 );
 
@@ -147,10 +157,12 @@ const HomeTabs = () => (
       component={HomeScreen}
       options={{ title: 'ホーム' }}
     />
+    {/* タブ右側は常に自分のプロフィール。ルート名を Account に分離して、他人用の Profile と混ざらないようにする */}
     <Tab.Screen
-      name="Profile"
+      name="Account"
       component={ProfileScreen}
       options={{ title: 'アカウント' }}
+      initialParams={{ viewUid: 'me' }}
     />
   </Tab.Navigator>
 );
@@ -161,6 +173,12 @@ const AppStack = () => (
       name="HomeTabs"
       component={HomeTabs}
       options={{ headerShown: false }}
+    />
+    {/* 他人プロフィール表示用（Home から push 遷移） */}
+    <Stack.Screen
+      name="Profile"
+      component={ProfileScreen}
+      options={{ title: 'Profile' }}
     />
     <Stack.Screen
       name="Main"

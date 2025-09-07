@@ -14,7 +14,7 @@ import { RootStackParamList } from '../navigator/RootNavigator';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+type Props = any; // タブ(Account)とスタック(Profile)で共用するため緩める
 
 export type UserProfile = {
   name: string;
@@ -122,7 +122,10 @@ export default function ProfileScreen({ navigation, route }: Props) {
   >('all');
   const [content, setContent] = useState<ContentItem[]>([]);
 
-  const viewUid = route.params?.viewUid || auth().currentUser?.uid || null;
+  const rawViewUid = route?.params?.viewUid;
+  const meUid = auth().currentUser?.uid || null;
+  const resolvedUid = rawViewUid === 'me' || !rawViewUid ? meUid : rawViewUid;
+  const viewUid = resolvedUid || null;
   const isMe = viewUid && auth().currentUser?.uid === viewUid;
 
   useEffect(() => {
@@ -165,7 +168,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
       }
     };
     fetchProfile();
-  }, [navigation, route.params, viewUid]);
+  }, [navigation, route?.params, viewUid]);
 
   if (!userProfile) {
     return (
