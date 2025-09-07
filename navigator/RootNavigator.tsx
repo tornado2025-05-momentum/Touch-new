@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../homeScreen';
 import GPScreen from '../gps/getGPS';
 import AccountScreen from '../account/makeAccount';
+import { ChatScreen } from '../account/ChatScreen';
 import TradeScreen from '../gps/trade';
 import ProfileScreen from '../profile/ProfileScreen';
 import EditProfileScreen from '../profile/EditProfileScreen';
@@ -11,6 +12,8 @@ export type RootStackParamList = {
   Home: undefined;
   GPS: undefined;
   Account: undefined;
+  // ★ Chat 画面は peerUid をパラメータで受け取れるように（任意）
+  Chat: { peerUid?: string } | undefined;
   Trade: undefined;
   Profile: { updatedProfile?: any; updatedContent?: any } | undefined;
   EditProfile: { currentProfile: any; currentContent: any };
@@ -36,6 +39,11 @@ export default function RootNavigator() {
         name="Account"
         component={AccountScreen}
         options={{ title: 'Account' }}
+      />
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ title: 'Chat' }}
       />
       <Stack.Screen
         name="Trade"
