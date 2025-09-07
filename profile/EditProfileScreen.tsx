@@ -1,12 +1,28 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, SafeAreaView, Alert, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Button,
+  SafeAreaView,
+  Alert,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigator/RootNavigator';
 import { ContentItem, UserProfile } from './ProfileScreen';
-import { launchImageLibrary, ImageLibraryOptions } from 'react-native-image-picker';
+import {
+  launchImageLibrary,
+  ImageLibraryOptions,
+} from 'react-native-image-picker';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import auth from '@react-native-firebase/auth';
+import { v4 as uuidv4 } from 'uuid';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
@@ -20,7 +36,9 @@ export default function EditProfileScreen({ navigation, route }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [newImage, setNewImage] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'music' | 'books' | 'recent'>('all');
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'music' | 'books' | 'recent'
+  >('all');
 
   const selectImage = () => {
     const options: ImageLibraryOptions = {
@@ -51,8 +69,8 @@ export default function EditProfileScreen({ navigation, route }: Props) {
         if (itemId) {
           setContent(prevContent =>
             prevContent.map(item =>
-              item.id === itemId ? { ...item, uri: uri } : item
-            )
+              item.id === itemId ? { ...item, uri: uri } : item,
+            ),
           );
         } else {
           setNewImage(uri);
@@ -60,15 +78,15 @@ export default function EditProfileScreen({ navigation, route }: Props) {
       }
     });
   };
-  
+
   const handleAddContent = () => {
     if (!newImage) {
       Alert.alert('エラー', '写真を選択してください。');
       return;
     }
-    
+
     const newItem: ContentItem = {
-      id: Math.random().toString(),
+      id: uuidv4(),
       type: 'image',
       uri: newImage,
       text: newComment,
@@ -80,8 +98,10 @@ export default function EditProfileScreen({ navigation, route }: Props) {
   };
 
   const handleUpdateContentText = (id: string, newText: string) => {
-    setContent(prevContent => 
-      prevContent.map(item => item.id === id ? { ...item, text: newText } : item)
+    setContent(prevContent =>
+      prevContent.map(item =>
+        item.id === id ? { ...item, text: newText } : item,
+      ),
     );
   };
 
@@ -119,11 +139,19 @@ export default function EditProfileScreen({ navigation, route }: Props) {
           avatarUrl: newAvatarUrl,
           content,
         },
-        { merge: true }
+        { merge: true },
       );
       Alert.alert('成功', 'プロフィールを保存しました。');
-      const updatedProfile = { ...currentProfile, name, affiliation, avatarUrl: newAvatarUrl };
-      navigation.navigate('Profile', { updatedProfile, updatedContent: content });
+      const updatedProfile = {
+        ...currentProfile,
+        name,
+        affiliation,
+        avatarUrl: newAvatarUrl,
+      };
+      navigation.navigate('Profile', {
+        updatedProfile,
+        updatedContent: content,
+      });
     } catch (e) {
       console.error(e);
       Alert.alert('エラー', 'プロフィールの保存に失敗しました。');
@@ -132,13 +160,14 @@ export default function EditProfileScreen({ navigation, route }: Props) {
     }
   };
 
-  const filteredContent = activeTab === 'all'
-    ? content
-    : content.filter(item => item.category === activeTab);
+  const filteredContent =
+    activeTab === 'all'
+      ? content
+      : content.filter(item => item.category === activeTab);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         scrollEventThrottle={16} // ここを追加
         removeClippedSubviews={true} // ここを追加
@@ -149,29 +178,63 @@ export default function EditProfileScreen({ navigation, route }: Props) {
             style={styles.avatar}
             source={{ uri: avatarUrl || 'https://placeimg.com/200/200/any' }}
           />
-          <TouchableOpacity style={styles.changeAvatarButton} onPress={selectImage} disabled={isSaving}>
+          <TouchableOpacity
+            style={styles.changeAvatarButton}
+            onPress={selectImage}
+            disabled={isSaving}
+          >
             <Text style={styles.changeAvatarText}>プロフィール写真を変更</Text>
           </TouchableOpacity>
         </View>
 
         <Text style={styles.label}>名前</Text>
-        <TextInput style={styles.input} value={name} onChangeText={setName} editable={!isSaving} />
+        <TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          editable={!isSaving}
+        />
         <Text style={styles.label}>所属</Text>
-        <TextInput style={styles.input} value={affiliation} onChangeText={setAffiliation} editable={!isSaving} />
-        
+        <TextInput
+          style={styles.input}
+          value={affiliation}
+          onChangeText={setAffiliation}
+          editable={!isSaving}
+        />
+
         <Text style={styles.sectionTitle}>コンテンツ編集</Text>
         <View style={styles.tabContainer}>
-          <TouchableOpacity style={[styles.tab, activeTab === 'all' && styles.activeTab]} onPress={() => setActiveTab('all')}>
-            <Text style={activeTab === 'all' && styles.activeTabText}>すべて</Text>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'all' && styles.activeTab]}
+            onPress={() => setActiveTab('all')}
+          >
+            <Text style={activeTab === 'all' && styles.activeTabText}>
+              すべて
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, activeTab === 'music' && styles.activeTab]} onPress={() => setActiveTab('music')}>
-            <Text style={activeTab === 'music' && styles.activeTabText}>音楽</Text>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'music' && styles.activeTab]}
+            onPress={() => setActiveTab('music')}
+          >
+            <Text style={activeTab === 'music' && styles.activeTabText}>
+              音楽
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, activeTab === 'books' && styles.activeTab]} onPress={() => setActiveTab('books')}>
-            <Text style={activeTab === 'books' && styles.activeTabText}>本</Text>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'books' && styles.activeTab]}
+            onPress={() => setActiveTab('books')}
+          >
+            <Text style={activeTab === 'books' && styles.activeTabText}>
+              本
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, activeTab === 'recent' && styles.activeTab]} onPress={() => setActiveTab('recent')}>
-            <Text style={activeTab === 'recent' && styles.activeTabText}>最近の出来事</Text>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'recent' && styles.activeTab]}
+            onPress={() => setActiveTab('recent')}
+          >
+            <Text style={activeTab === 'recent' && styles.activeTabText}>
+              最近の出来事
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -179,7 +242,10 @@ export default function EditProfileScreen({ navigation, route }: Props) {
         <View style={styles.currentContentList}>
           {filteredContent.map(item => (
             <View key={item.id} style={styles.contentItem}>
-              <TouchableOpacity onPress={() => selectContentImage(item.id)} style={styles.contentImageWrapper}>
+              <TouchableOpacity
+                onPress={() => selectContentImage(item.id)}
+                style={styles.contentImageWrapper}
+              >
                 <Image source={{ uri: item.uri }} style={styles.contentImage} />
                 <View style={styles.contentImageOverlay} />
               </TouchableOpacity>
@@ -187,11 +253,16 @@ export default function EditProfileScreen({ navigation, route }: Props) {
                 <TextInput
                   style={styles.contentText}
                   value={item.text}
-                  onChangeText={(newText) => handleUpdateContentText(item.id, newText)}
+                  onChangeText={newText =>
+                    handleUpdateContentText(item.id, newText)
+                  }
                   editable={!isSaving}
                 />
               </View>
-              <TouchableOpacity onPress={() => handleRemoveContent(item.id)} style={styles.removeButton}>
+              <TouchableOpacity
+                onPress={() => handleRemoveContent(item.id)}
+                style={styles.removeButton}
+              >
                 <Text style={styles.removeButtonText}>削除</Text>
               </TouchableOpacity>
             </View>
@@ -199,28 +270,36 @@ export default function EditProfileScreen({ navigation, route }: Props) {
         </View>
 
         <Text style={styles.sectionSubTitle}>新しいコンテンツを追加</Text>
-        <TouchableOpacity onPress={() => selectContentImage()} style={[styles.imagePicker, newImage && styles.imagePickerActive]}>
+        <TouchableOpacity
+          onPress={() => selectContentImage()}
+          style={[styles.imagePicker, newImage && styles.imagePickerActive]}
+        >
           {newImage ? (
             <Image source={{ uri: newImage }} style={styles.newImage} />
           ) : (
             <Text style={styles.imagePickerText}>写真を選択</Text>
           )}
         </TouchableOpacity>
-        {activeTab === 'recent' && (
-          <TextInput
-            style={styles.commentInput}
-            placeholder="一言コメント"
-            value={newComment}
-            onChangeText={setNewComment}
-          />
-        )}
-        <TouchableOpacity onPress={handleAddContent} style={styles.addButton} disabled={!newImage || isSaving}>
-            <Text style={styles.addButtonText}>追加</Text>
+        <TextInput
+          style={styles.commentInput}
+          placeholder="一言コメント"
+          value={newComment}
+          onChangeText={setNewComment}
+        />
+        <TouchableOpacity
+          onPress={handleAddContent}
+          style={styles.addButton}
+          disabled={!newImage || isSaving}
+        >
+          <Text style={styles.addButtonText}>追加</Text>
         </TouchableOpacity>
-
       </ScrollView>
       <View style={styles.saveButtonContainer}>
-        <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={isSaving}>
+        <TouchableOpacity
+          onPress={handleSave}
+          style={styles.saveButton}
+          disabled={isSaving}
+        >
           {isSaving ? (
             <ActivityIndicator color="#fff" />
           ) : (

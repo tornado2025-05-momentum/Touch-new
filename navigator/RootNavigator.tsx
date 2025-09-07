@@ -7,6 +7,7 @@ import { ChatScreen } from '../account/ChatScreen';
 import TradeScreen from '../gps/trade';
 import ProfileScreen from '../profile/ProfileScreen';
 import EditProfileScreen from '../profile/EditProfileScreen';
+import type { UserProfile, ContentItem } from '../profile/ProfileScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -15,8 +16,10 @@ export type RootStackParamList = {
   // ★ Chat 画面は peerUid をパラメータで受け取れるように（任意）
   Chat: { peerUid?: string } | undefined;
   Trade: undefined;
-  Profile: { updatedProfile?: any; updatedContent?: any } | undefined;
-  EditProfile: { currentProfile: any; currentContent: any };
+  Profile:
+    | { updatedProfile?: UserProfile; updatedContent?: ContentItem[] }
+    | undefined;
+  EditProfile: { currentProfile: UserProfile; currentContent: ContentItem[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
