@@ -46,29 +46,57 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
     setSelectedTrack(null);
     setPlayingVideoId(null); // 新しい検索でプレイヤーは非表示に
 
-    const functionUrl = `https://searchsongs-5syklhwyua-uc.a.run.app/?q=${encodeURIComponent(term)}`;
+    const functionUrl = `https://us-central1-server-342ba.cloudfunctions.net/searchsongs/?q=${encodeURIComponent(term)}`;
 
     try {
+      // ===================================================================
+      // ★★★ デバッグコード スタート ★★★
+      // サーバーからの生の応答をすべて確認します。
+      // ===================================================================
+      console.log('Requesting URL:', functionUrl);
       const response = await fetch(functionUrl);
-      if (!response.ok) {
-        throw new Error('サーバーからの応答が正常ではありません。');
-      }
-      const data: any = await response.json();
 
-      if (data?.tracks?.items) {
-        const list: Track[] = data.tracks.items.map((item: any) => ({
-          id: item.id,
-          title: item.name,
-          artist: item.artists.map((a: any) => a.name).join(', '),
-          imageUrl: item.album.images[0]?.url || '',
-          youtubeVideoId: item.youtubeVideoId, // バックエンドからvideoIdを受け取る
-        }));
-        setItems(list);
+      console.log('▼▼▼ Server Response Details ▼▼▼');
+
+      // HTTPステータスコード（200, 401, 500 など）を表示
+      console.log('Status Code:', response.status);
+
+      // サーバーが返した応答の「本文」をテキストとして取得して表示
+      // これがエラーの原因を特定する最も重要な情報です
+      const responseBody = await response.text();
+      console.log('Response Body:', responseBody);
+
+      console.log('▲▲▲ Server Response Details ▲▲▲');
+
+      // 応答が正常（200番台）の場合のみ、JSONとして処理を試みる
+      if (response.ok) {
+        const data: any = JSON.parse(responseBody); // テキストをJSONに変換
+
+        if (data?.tracks?.items) {
+          const list: Track[] = data.tracks.items.map((item: any) => ({
+            id: item.id,
+            title: item.name,
+            artist: item.artists.map((a: any) => a.name).join(', '),
+            imageUrl: item.album.images[0]?.url || '',
+            youtubeVideoId: item.youtubeVideoId,
+          }));
+          setItems(list);
+        } else {
+          setItems([]);
+        }
       } else {
-        setItems([]);
+        // 応答がエラーの場合、その内容をAlertで表示
+        throw new Error(`サーバーからエラーが返されました (Code: ${response.status})。詳細はターミナルのログを確認してください。`);
       }
+      // ===================================================================
+      // ★★★ デバッグコード エンド ★★★
+      // ===================================================================
+
     } catch (e: any) {
+      console.error('▼▼▼ CATCHしたエラーの詳細 ▼▼▼');
       console.error(e);
+      console.error('▲▲▲ CATCHしたエラーの詳細 ▲▲▲');
+      // Alertには、catchしたエラーのメッセージを表示
       Alert.alert('検索エラー', e.message);
     } finally {
       setLoading(false);
@@ -79,11 +107,9 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
   const handleTrackPress = (track: Track) => {
     setSelectedTrack(track); // まず曲を選択状態にする
     if (track.youtubeVideoId) {
-      // 現在再生中の動画と同じものをタップしたら再生/停止を切り替え
       if (playingVideoId === track.youtubeVideoId) {
         setIsPlaying(!isPlaying);
       } else {
-      // 違う曲をタップしたら、新しい動画を再生
         setPlayingVideoId(track.youtubeVideoId);
         setIsPlaying(true);
       }
@@ -92,21 +118,18 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
       setPlayingVideoId(null);
     }
   };
-  
+
   // クラッシュを防ぐ、修正された画面遷移ロジック
   const handleNext = async () => {
     const user = auth().currentUser;
     if (!user || !selectedTrack) return;
 
-    // 1. まずプレイヤーを停止・非表示にする命令を出す
     setIsPlaying(false);
     setPlayingVideoId(null);
 
-    // stateの更新が画面に反映されるのを待つため、ごくわずかな遅延を入れる
     setTimeout(async () => {
       setLoading(true);
       try {
-        // 2. Firestoreへの保存処理
         await firestore().collection('users').doc(user.uid).collection('selections').doc('music').set({
           trackId: selectedTrack.id,
           title: selectedTrack.title,
@@ -114,8 +137,7 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
           imageUrl: selectedTrack.imageUrl,
           selectedAt: firestore.FieldValue.serverTimestamp(),
         });
-        
-        // 3. プレイヤーが完全に消えた後で、安全に画面遷移する
+
         navigation.navigate('SelectionConfirmation', { track: selectedTrack, flow });
 
       } catch (e) {
@@ -124,7 +146,7 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
       } finally {
         setLoading(false);
       }
-    }, 100); 
+    }, 100);
   };
 
   // プレイヤーの状態が変化したときのコールバック
@@ -180,28 +202,27 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
         keyExtractor={(it) => it.id}
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: '#EEE' }} />}
-        contentContainerStyle={{ flex: 1, paddingHorizontal: 16, paddingBottom: 100 }} // ボタンに隠れないように余白を追加
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
       />
 
       {/* 曲が選択されたら次へ進むボタンを表示 */}
       {selectedTrack && (
         <View style={styles.footer}>
-            <TouchableOpacity
-                style={styles.nextButton}
-                onPress={handleNext} 
-            >
-                {/* アイコンのサイズと太さを調整 */}
-                <Svg width="30" height="30" viewBox="0 0 24 24" fill="none">
-                    <Path 
-                        d="M9 5l7 7-7 7" // パスを調整して中央に配置
-                        stroke="white" 
-                        strokeWidth="3.5" // 線の太さを調整
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                    />
-                </Svg>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.nextButton}
+            onPress={handleNext}
+          >
+            <Svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M9 5l7 7-7 7"
+                stroke="white"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
@@ -225,7 +246,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   selectedRow: {
-    backgroundColor: '#e0eaff', // 選択中の背景色
+    backgroundColor: '#e0eaff',
   },
   thumb: { width: 48, height: 48, borderRadius: 6, marginRight: 12, backgroundColor: '#EEE' },
   title: { fontSize: 15, fontWeight: '600', color: '#1C1C1E' },
@@ -244,7 +265,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0047AB',
     justifyContent: 'center',
     alignItems: 'center',
-    // 影
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -255,4 +275,3 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 });
-

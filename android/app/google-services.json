@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1036939405437-2nqm2bfbrg5c1hqtg62k48hgk7vmbvha.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.momentum",
+            "certificate_hash": "e9d78cff48d973b8dba96d3084c443c909268676"
+          }
+        },
+        {
           "client_id": "1036939405437-516l3598678vlf8nsb5ues8hv0sdfkg0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
