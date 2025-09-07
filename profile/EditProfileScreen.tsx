@@ -142,16 +142,8 @@ export default function EditProfileScreen({ navigation, route }: Props) {
         { merge: true },
       );
       Alert.alert('成功', 'プロフィールを保存しました。');
-      const updatedProfile = {
-        ...currentProfile,
-        name,
-        affiliation,
-        avatarUrl: newAvatarUrl,
-      };
-      navigation.navigate('Profile', {
-        updatedProfile,
-        updatedContent: content,
-      });
+      // Firestore購読でProfile側が最新を取得するため、スタックを積まずに戻る
+      navigation.goBack();
     } catch (e) {
       console.error(e);
       Alert.alert('エラー', 'プロフィールの保存に失敗しました。');
