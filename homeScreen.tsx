@@ -11,8 +11,8 @@ export default function HomeScreen({ navigation }: Props) {
       <Text style={styles.title}>Home Screen</Text>
 
       <Button
-        title="Go to Account"
-        onPress={() => navigation.navigate('Account')}
+        title="Go to Welcome"
+        onPress={() => navigation.navigate('Welcome')}
       />
       <Button
         title="Go to Chat"

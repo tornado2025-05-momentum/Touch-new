@@ -24,10 +24,7 @@ import {
   uploadMyImage,
   getUserImageUrl,
   getFirebaseEnv,
-<<<<<<< HEAD
   recordEncounter,
-=======
->>>>>>> 3392beae45451e374d770eaea06f4c28f79051bb
 } from '../firebase/firebase_system';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Trade'>;
@@ -212,6 +209,20 @@ export default function getMyLocation({ route, navigation }: Props) {
 
   // 逆ジオコーディング（Nominatim）
   async function reverseGeocode(lat: number, lon: number): Promise<string> {
+    // Nominatim API の最小限の型
+    type NominatimReverseResponse = {
+      address?: {
+        neighbourhood?: string;
+        suburb?: string;
+        village?: string;
+        town?: string;
+        city?: string;
+        city_district?: string;
+        municipality?: string;
+        county?: string;
+      };
+    };
+
     const key = cellKey(lat, lon);
     const cached = placeCache.current.get(key);
     if (cached) return cached;
@@ -230,7 +241,7 @@ export default function getMyLocation({ route, navigation }: Props) {
         `Reverse geocode failed: ${res.status} ${res.statusText}`,
       );
     }
-    const j = await res.json();
+    const j = (await res.json()) as NominatimReverseResponse; // RN/undici 環境では json() が unknown になることがあるため明示
     const a = j.address || {};
     const name =
       a.neighbourhood ||
