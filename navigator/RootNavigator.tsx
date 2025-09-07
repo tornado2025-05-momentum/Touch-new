@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../homeScreen';
 import GPScreen from '../gps/getGPS';
 import AccountScreen from '../account/makeAccount';
-import { ChatScreen } from '../ChatScreen';
+import { ChatScreen } from '../account/ChatScreen';
 import TradeScreen from '../gps/trade';
 
 export type RootStackParamList = {

@@ -24,7 +24,7 @@ import {
   uploadMyImage,
   getUserImageUrl,
   getFirebaseEnv,
-} from '../firebase/sendRes';
+} from '../firebase/firebase_system';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Trade'>;
 
@@ -36,7 +36,7 @@ const WALK_MAX_MPS = 1.6; // 徒歩以下の上限（約5.8km/h）
 // 運用用の連絡先メールアドレス（Nominatim API要件）
 const CONTACT_EMAIL = 'your-contact@email.com';
 
-import type { Member } from '../firebase/sendRes'; // 型を共有
+import type { Member } from '../firebase/firebase_system'; // 型を共有
 
 export default function getMyLocation({ route, navigation }: Props) {
   const [granted, setGranted] = useState(false);

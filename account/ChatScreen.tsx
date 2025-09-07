@@ -1,14 +1,23 @@
 // ChatScreen.tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, Button, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
-import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import firestore, {
+  FirebaseFirestoreTypes,
+} from '@react-native-firebase/firestore';
 import { GiftedChat, IMessage } from 'react-native-gifted-chat';
 
 // RootNavigator の型は現状 Chat: undefined ですが、
 // setParams を使うために any で受けます（テスト目的のため）
-import type { RootStackParamList } from './navigator/RootNavigator';
+import type { RootStackParamList } from '../navigator/RootNavigator';
 
 // ===== 検証用の固定UID（フォールバック用に残す） =====
 const UID1 = '33y7VZmwZrVWGhFrVW5M24igywF3';
@@ -59,7 +68,7 @@ export function ChatScreen() {
   // 相手UIDの決定：param を最優先、なければ固定テストペアにフォールバック
   const peerUid = useMemo(() => {
     if (!me) return null;
-    if (routePeerUid) return routePeerUid;                 // ★ これが最優先
+    if (routePeerUid) return routePeerUid; // ★ これが最優先
     if (me.uid === UID1) return UID2;
     if (me.uid === UID2) return UID1;
     console.warn('[WARN] peerUid 未指定＆固定ペア外:', me.uid);
@@ -82,21 +91,28 @@ export function ChatScreen() {
       .orderBy('createdAt', 'desc')
       .limit(50)
       .onSnapshot(
-        (snap) => {
+        snap => {
           const list: IMessage[] = [];
-          snap.forEach((d) => {
+          snap.forEach(d => {
             const v = d.data() as MessageDoc;
             list.push({
               _id: v._id ?? d.id,
               text: v.text ?? '',
               createdAt: v.createdAt?.toDate?.() ?? new Date(),
-              user: { _id: v.user?._id ?? 'unknown', name: v.user?.name ?? 'User' },
+              user: {
+                _id: v.user?._id ?? 'unknown',
+                name: v.user?.name ?? 'User',
+              },
             });
           });
           setMessages(list);
         },
-        (err) => {
-          console.log('[onSnapshot ERR]', (err as any)?.code ?? '', err.message);
+        err => {
+          console.log(
+            '[onSnapshot ERR]',
+            (err as any)?.code ?? '',
+            err.message,
+          );
         },
       );
     return unsub;
@@ -109,7 +125,9 @@ export function ChatScreen() {
       const m = out[0];
 
       const id =
-        typeof m._id === 'string' ? m._id : firestore().collection('_').doc().id;
+        typeof m._id === 'string'
+          ? m._id
+          : firestore().collection('_').doc().id;
 
       const now: FirebaseFirestoreTypes.Timestamp = firestore.Timestamp.now();
 
@@ -154,7 +172,9 @@ export function ChatScreen() {
         {devOpen && (
           <View style={styles.devBody}>
             <Text style={styles.line}>me: {me?.uid ?? '(未ログイン)'}</Text>
-            <Text style={styles.line}>current peerUid(param): {routePeerUid ?? '(未指定)'} </Text>
+            <Text style={styles.line}>
+              current peerUid(param): {routePeerUid ?? '(未指定)'}{' '}
+            </Text>
 
             <View style={styles.row}>
               <TextInput
@@ -164,7 +184,10 @@ export function ChatScreen() {
                 style={styles.input}
                 autoCapitalize="none"
               />
-              <Button title="適用" onPress={() => applyPeer(peerInput.trim())} />
+              <Button
+                title="適用"
+                onPress={() => applyPeer(peerInput.trim())}
+              />
             </View>
 
             <View style={styles.row}>
@@ -172,7 +195,10 @@ export function ChatScreen() {
               <View style={{ width: 8 }} />
               <Button title="UID2 を相手に" onPress={() => applyPeer(UID2)} />
               <View style={{ width: 8 }} />
-              <Button title="param クリア" onPress={() => navigation.setParams({ peerUid: undefined })} />
+              <Button
+                title="param クリア"
+                onPress={() => navigation.setParams({ peerUid: undefined })}
+              />
             </View>
 
             <Text style={styles.hint}>
@@ -194,11 +220,23 @@ export function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  devWrap: { padding: 10, backgroundColor: '#f2f2f2', borderBottomWidth: 1, borderBottomColor: '#ddd' },
+  devWrap: {
+    padding: 10,
+    backgroundColor: '#f2f2f2',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
   devTitle: { fontWeight: 'bold', marginBottom: 6 },
   devBody: { gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  input: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 8, height: 36 },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    height: 36,
+  },
   line: { fontSize: 12, color: '#333' },
   hint: { fontSize: 12, color: '#666' },
 });
