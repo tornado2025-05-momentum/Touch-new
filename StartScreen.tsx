@@ -10,8 +10,8 @@ export default function HomeScreen({ navigation }: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>Home Screen</Text>
       <Button
-        title="フォアグランド版" 
-        onPress={() => navigation.navigate('GPS')} 
+        title="フォアグランド版"
+        onPress={() => navigation.navigate('GPS')}
       />
       <Button
         title="バックグラウンド版"
@@ -19,7 +19,7 @@ export default function HomeScreen({ navigation }: Props) {
       />
       <Button
         title="アカウント登録・ログイン"
-        onPress={() => navigation.navigate('Account')}
+        onPress={() => navigation.navigate('Welcome')}
       />
     </View>
   );

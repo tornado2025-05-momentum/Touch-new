@@ -48,11 +48,11 @@ const WelcomeScreen = ({ navigation }: WelcomeScreenProps) => {
             <Text style={styles.primaryButtonText}>新規登録</Text>
           </Pressable>
           <Pressable
-              style={styles.secondaryButton}
-              onPress={() => navigation.navigate('Login')}
-            >
-                <Text style={styles.secondaryButtonText}>ログイン</Text>
-            </Pressable>
+            style={styles.secondaryButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.secondaryButtonText}>ログイン</Text>
+          </Pressable>
         </View>
       </View>
     </LinearGradientComponent>
@@ -115,7 +115,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },secondaryButton: {
+  },
+  secondaryButton: {
     backgroundColor: '#FFFFFF',
     paddingVertical: 16,
     borderRadius: 12,
@@ -128,7 +129,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-
 });
 
 export default WelcomeScreen;

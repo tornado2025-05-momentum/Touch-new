@@ -5,7 +5,6 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 
-import App from '../gps/GetGPS';
 import App from '../homeScreen';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigator/RootNavigator';

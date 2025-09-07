@@ -13,10 +13,12 @@ type Nav = Pick<NativeStackNavigationProp<RootStackParamList>, 'navigate'>;
  * @param flow - 遷移する画面のID配列 (例: ['music', 'books'])
  */
 export const startFlow = (navigation: Nav, flow: FlowStep[]) => {
+  console.log('[flow] startFlow called with:', flow);
   // もし処理すべきflowがもうなければ、最後の画面（住所入力）へ遷移
   if (!flow || flow.length === 0) {
     // ここを最終的に遷移させたい画面に変更してください
-    navigation.navigate('AddressInput'); 
+    console.log('[flow] no more steps. Navigating to AddressInput');
+    navigation.navigate('AddressInput');
     return;
   }
 
@@ -27,12 +29,15 @@ export const startFlow = (navigation: Nav, flow: FlowStep[]) => {
   // その際、残りのflowをパラメータとして渡す
   switch (head) {
     case 'music':
+      console.log('[flow] next -> MusicSearch, rest:', rest);
       navigation.navigate('MusicSearch', { flow: rest });
       break;
     case 'books':
+      console.log('[flow] next -> BookSearch, rest:', rest);
       navigation.navigate('BookSearch', { flow: rest });
       break;
     case 'recent_events':
+      console.log('[flow] next -> RecentEvent, rest:', rest);
       navigation.navigate('RecentEvent', { flow: rest });
       break;
   }

@@ -15,6 +15,7 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigator/RootNavigator';
+import { recordEncounter } from '../firebase/firebase_system';
 import LocationDisplay from './LocationDisplay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GPS'>;
@@ -46,6 +47,8 @@ export default function GetMyLocation({ route, navigation }: Props) {
   const nearSinceRef = useRef<Map<string, number>>(new Map());
   const lastUploadAt = useRef(0);
   const [roomMembers, setRoomMembers] = useState<Member[]>([]);
+  // 同一セッションで記録済みの peer/day を避けるためのローカル記録
+  const loggedTodayRef = useRef<Set<string>>(new Set());
   const lastUploadSampleRef = useRef<{
     lat: number;
     lon: number;
@@ -141,6 +144,22 @@ export default function GetMyLocation({ route, navigation }: Props) {
       return since != null && now - since >= 10 * 60 * 1000; // 10分
     });
     setRoomMembers(eligible);
+    // 遭遇確定者を記録（当日同一peerは一度だけ）
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = `${today.getMonth() + 1}`.padStart(2, '0');
+    const d = `${today.getDate()}`.padStart(2, '0');
+    const dayKey = `${y}-${m}-${d}`;
+    const placeName = members.find(m => m.id === uid)?.place ?? null;
+    eligible.forEach(e => {
+      const key = `${dayKey}_${e.id}`;
+      if (!loggedTodayRef.current.has(key)) {
+        loggedTodayRef.current.add(key);
+        recordEncounter(e.id, ROOM_ID, placeName).catch(err =>
+          console.warn('recordEncounter failed:', err?.message || err),
+        );
+      }
+    });
   }, [pos, members, uid]);
 
   //   useEffect(() => {
@@ -205,11 +224,11 @@ export default function GetMyLocation({ route, navigation }: Props) {
     const a = j.address || {};
 
     const name =
-      a.railway ||          // 駅名
-      a.amenity ||          // 公共施設名 (レストランなど)
-      a.shop ||             // 店名
-      a.tourism ||          // 観光地名
-      a.building ||         // 建物名
+      a.railway || // 駅名
+      a.amenity || // 公共施設名 (レストランなど)
+      a.shop || // 店名
+      a.tourism || // 観光地名
+      a.building || // 建物名
       a.neighbourhood ||
       a.suburb ||
       a.village ||
@@ -312,7 +331,6 @@ export default function GetMyLocation({ route, navigation }: Props) {
         distanceFilter: 0, // 距離に関係なく通知
         interval: 60000, // 1分毎（Android目安）
         fastestInterval: 30000, // 30秒以上
-        
       },
     );
     setWatchId(id as unknown as number);
@@ -352,92 +370,157 @@ export default function GetMyLocation({ route, navigation }: Props) {
 
   //表示
   return (
-    <LocationDisplay
-      title="位置情報 (フォアグラウンドのみ版)"
-      uid={uid}
-      isTracking={isTracking}
-      pos={pos}
-      place={place}
-      error={error}
-      members={members}
-      onGetOnce={getOnce}
-      onStartTracking={startWatch} // startWatchを渡す
-      onStopTracking={stopWatch}   // stopWatchを渡す
-    />
-        
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>位置情報 x Firebase</Text>
-      <Text>UID: {uid ?? '-'}</Text>
-      {authErr && <Text style={{ color: 'red' }}>Auth Error: {authErr}</Text>}
-      <View style={styles.row}>
-        <Button title="認証を再試行" onPress={ensureAuth} />
-      </View>
-      <Text>権限: {granted ? '許可' : '未許可'}</Text>
-
-      <View style={styles.row}>
-        <Button title="現在地を1回取得 & 送信" onPress={getOnce} />
-      </View>
-      <View style={styles.row}>
-        {watchId == null ? (
-          <Button title="連続取得を開始" onPress={startWatch} />
-        ) : (
-          <Button title="連続取得を停止" onPress={stopWatch} />
-        )}
-      </View>
-
-      {pos && (
-        <Text style={styles.pos}>
-          My Lat: {pos.lat.toFixed(6)}
-          {'\n'}
-          My Lon: {pos.lon.toFixed(6)}
-          {'\n'}
-          現在地: {place ?? '取得中…'}
-        </Text>
-      )}
-
-      {mySpeedMps != null && (
-        <Text style={styles.caption}>
-          自分の推定速度: {(mySpeedMps * 3.6).toFixed(1)} km/h（
-          {mySlowRef.current ? '徒歩以下' : '速い'}）
-        </Text>
-      )}
-      {error && <Text style={styles.err}>Error: {error}</Text>}
-
-      <Text style={styles.subtitle}>
-        同じ部屋のメンバー（10分以上・半径100m以内）
-      </Text>
-      <FlatList
-        style={{ width: '100%', marginTop: 8 }}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        data={roomMembers}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => {
-          const isMe = uid && item.id === uid;
-          const timeStr = item.updatedAt?.toDate?.()
-            ? item.updatedAt.toDate().toLocaleTimeString()
-            : '-';
-          return (
-            <View style={styles.memberRow}>
-              <View style={styles.memberTop}>
-                <Text style={[styles.memberId, isMe && styles.me]}>
-                  {isMe ? '自分' : `${item.id.slice(0, 6)}…`}
-                </Text>
-                <Text style={styles.memberTime}>{timeStr}</Text>
-              </View>
-
-              <Text style={styles.memberPlace}>
-                すれ違い場所: {item.place ?? '取得中…'}
-              </Text>
-
-              <Text style={styles.memberCoords}>
-                lat:{typeof item.lat === 'number' ? item.lat.toFixed(5) : '-'}
-                {'  '}
-                lon:{typeof item.lon === 'number' ? item.lon.toFixed(5) : '-'}
-              </Text>
-            </View>
-          );
-        }}
+    <>
+      <LocationDisplay
+        title="位置情報 (フォアグラウンドのみ版)"
+        uid={uid}
+        isTracking={isTracking}
+        pos={pos}
+        place={place}
+        error={error}
+        members={members}
+        onGetOnce={getOnce}
+        onStartTracking={startWatch} // startWatchを渡す
+        onStopTracking={stopWatch} // stopWatchを渡す
       />
-    </SafeAreaView>
+
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>位置情報 x Firebase</Text>
+        <Text>UID: {uid ?? '-'}</Text>
+        {authErr && <Text style={{ color: 'red' }}>Auth Error: {authErr}</Text>}
+        <View style={styles.row}>
+          <Button title="認証を再試行" onPress={ensureAuth} />
+        </View>
+        <Text>権限: {granted ? '許可' : '未許可'}</Text>
+
+        <View style={styles.row}>
+          <Button title="現在地を1回取得 & 送信" onPress={getOnce} />
+        </View>
+        <View style={styles.row}>
+          {watchId == null ? (
+            <Button title="連続取得を開始" onPress={startWatch} />
+          ) : (
+            <Button title="連続取得を停止" onPress={stopWatch} />
+          )}
+        </View>
+
+        {pos && (
+          <Text style={styles.pos}>
+            My Lat: {pos.lat.toFixed(6)}
+            {'\n'}
+            My Lon: {pos.lon.toFixed(6)}
+            {'\n'}
+            現在地: {place ?? '取得中…'}
+          </Text>
+        )}
+
+        {mySpeedMps != null && (
+          <Text style={styles.caption}>
+            自分の推定速度: {(mySpeedMps * 3.6).toFixed(1)} km/h（
+            {mySlowRef.current ? '徒歩以下' : '速い'}）
+          </Text>
+        )}
+        {error && <Text style={styles.err}>Error: {error}</Text>}
+
+        <Text style={styles.subtitle}>
+          同じ部屋のメンバー（10分以上・半径100m以内）
+        </Text>
+        <FlatList
+          style={{ width: '100%', marginTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          data={roomMembers}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => {
+            const isMe = uid && item.id === uid;
+            const timeStr = item.updatedAt?.toDate?.()
+              ? item.updatedAt.toDate().toLocaleTimeString()
+              : '-';
+            return (
+              <View style={styles.memberRow}>
+                <View style={styles.memberTop}>
+                  <Text style={[styles.memberId, isMe && styles.me]}>
+                    {isMe ? '自分' : `${item.id.slice(0, 6)}…`}
+                  </Text>
+                  <Text style={styles.memberTime}>{timeStr}</Text>
+                </View>
+
+                <Text style={styles.memberPlace}>
+                  すれ違い場所: {item.place ?? '取得中…'}
+                </Text>
+
+                <Text style={styles.memberCoords}>
+                  lat:{typeof item.lat === 'number' ? item.lat.toFixed(5) : '-'}
+                  {'  '}
+                  lon:{typeof item.lon === 'number' ? item.lon.toFixed(5) : '-'}
+                </Text>
+              </View>
+            );
+          }}
+        />
+      </SafeAreaView>
+    </>
   );
 }
+
+// 画面で参照しているスタイルの定義（最低限）
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  row: {
+    marginTop: 8,
+  },
+  pos: {
+    marginTop: 12,
+    fontFamily:
+      Platform.select({ ios: 'Menlo', android: 'monospace' }) || undefined,
+  },
+  caption: {
+    marginTop: 8,
+    color: '#555',
+  },
+  err: {
+    marginTop: 8,
+    color: 'red',
+  },
+  subtitle: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  memberRow: {
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+  },
+  memberTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  memberId: {
+    fontWeight: '600',
+  },
+  me: {
+    color: '#007aff',
+  },
+  memberTime: {
+    color: '#666',
+    fontSize: 12,
+  },
+  memberPlace: {
+    marginTop: 4,
+  },
+  memberCoords: {
+    marginTop: 4,
+    fontFamily:
+      Platform.select({ ios: 'Menlo', android: 'monospace' }) || undefined,
+    color: '#333',
+  },
+});

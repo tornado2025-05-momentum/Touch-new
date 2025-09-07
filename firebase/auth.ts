@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import auth from '@react-native-firebase/auth';
 
-export function useAuthUid() {
+/**
+ * React hook to obtain current Firebase Auth UID (anonymous sign-in enforced).
+ */
+export function useAuthUid(): {
+  uid: string | null;
+  authErr: string | null;
+  reauth: () => Promise<void>;
+} {
   const [uid, setUid] = useState<string | null>(
     auth().currentUser?.uid ?? null,
   );
@@ -12,7 +19,7 @@ export function useAuthUid() {
     return unsub;
   }, []);
 
-  const reauth = async () => {
+  const reauth = async (): Promise<void> => {
     try {
       setAuthErr(null);
       await ensureAnonAuth();
@@ -29,6 +36,7 @@ export function useAuthUid() {
   return { uid, authErr, reauth };
 }
 
+/** Ensure an anonymous auth session and return UID. */
 export async function ensureAnonAuth(): Promise<string> {
   const cur = auth().currentUser;
   if (cur) return cur.uid;

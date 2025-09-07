@@ -24,6 +24,7 @@ import {
   uploadMyImage,
   getUserImageUrl,
   getFirebaseEnv,
+  recordEncounter,
 } from '../firebase/firebase_system';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Trade'>;
@@ -63,6 +64,7 @@ export default function getMyLocation({ route, navigation }: Props) {
   const { uid, authErr, reauth } = useAuthUid();
   const { members, error: listenErr } = useRoomMembers(ROOM_ID);
   const [roomMembers, setRoomMembers] = useState<Member[]>([]);
+  const loggedTodayRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (listenErr) setError(listenErr);
   }, [listenErr]);
@@ -183,6 +185,22 @@ export default function getMyLocation({ route, navigation }: Props) {
       return since != null && now - since >= 10 * 60 * 1000; // 10分以上
     });
     setRoomMembers(eligible);
+    // 遭遇確定者を記録（当日同一peerは一度だけ）
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = `${today.getMonth() + 1}`.padStart(2, '0');
+    const d = `${today.getDate()}`.padStart(2, '0');
+    const dayKey = `${y}-${m}-${d}`;
+    const placeName = members.find(m => m.id === uid)?.place ?? null;
+    eligible.forEach(e => {
+      const key = `${dayKey}_${e.id}`;
+      if (!loggedTodayRef.current.has(key)) {
+        loggedTodayRef.current.add(key);
+        recordEncounter(e.id, ROOM_ID, placeName).catch(err =>
+          console.warn('recordEncounter failed:', err?.message || err),
+        );
+      }
+    });
   }, [pos, members, uid]);
 
   // 約100mグリッドでキャッシュキー
@@ -191,6 +209,20 @@ export default function getMyLocation({ route, navigation }: Props) {
 
   // 逆ジオコーディング（Nominatim）
   async function reverseGeocode(lat: number, lon: number): Promise<string> {
+    // Nominatim API の最小限の型
+    type NominatimReverseResponse = {
+      address?: {
+        neighbourhood?: string;
+        suburb?: string;
+        village?: string;
+        town?: string;
+        city?: string;
+        city_district?: string;
+        municipality?: string;
+        county?: string;
+      };
+    };
+
     const key = cellKey(lat, lon);
     const cached = placeCache.current.get(key);
     if (cached) return cached;
@@ -209,7 +241,7 @@ export default function getMyLocation({ route, navigation }: Props) {
         `Reverse geocode failed: ${res.status} ${res.statusText}`,
       );
     }
-    const j = await res.json();
+    const j = (await res.json()) as NominatimReverseResponse; // RN/undici 環境では json() が unknown になることがあるため明示
     const a = j.address || {};
     const name =
       a.neighbourhood ||

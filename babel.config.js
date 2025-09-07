@@ -1,6 +1,7 @@
 module.exports = {
   presets: ['module:@react-native/babel-preset'],
   plugins: [
-      'react-native-worklets/plugin',
-    ],
+    // Use the new Worklets plugin (Reanimated plugin has moved)
+    'react-native-worklets/plugin',
+  ],
 };

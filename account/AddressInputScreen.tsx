@@ -1,7 +1,15 @@
 import React, { useState, useRef } from 'react';
 import {
-  SafeAreaView, View, Text, TextInput, StyleSheet,
-  Pressable, ActivityIndicator, Alert, Platform, PermissionsAndroid,
+  SafeAreaView,
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 // Import react-native-maps
 import MapView, { Marker } from 'react-native-maps';
@@ -26,7 +34,9 @@ export default function AddressInputScreen({ navigation }: any) {
   async function ensureLocationPermission(): Promise<boolean> {
     if (Platform.OS !== 'android') return true;
     try {
-      const fine = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+      const fine = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      );
       if (fine !== PermissionsAndroid.RESULTS.GRANTED) {
         Alert.alert('位置情報の権限', '位置情報の権限が許可されていません。');
         return false;
@@ -38,7 +48,7 @@ export default function AddressInputScreen({ navigation }: any) {
       return false;
     }
   }
-  
+
   // ---- Common function for fetching JSON from an API ----
   async function fetchJSON<T>(url: string): Promise<T | null> {
     try {
@@ -53,7 +63,7 @@ export default function AddressInputScreen({ navigation }: any) {
       return null;
     }
   }
-  
+
   // ---- Geocoding function (using Google Geocoding API) ----
   async function geocode(addressQuery: string) {
     const apiKey = Config.GOOGLE_MAPS_API_KEY;
@@ -62,8 +72,10 @@ export default function AddressInputScreen({ navigation }: any) {
       Alert.alert('設定エラー', 'アプリケーションが正しく設定されていません。');
       return null;
     }
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressQuery)}&key=${apiKey}&language=ja&region=jp`;
-    
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+      addressQuery,
+    )}&key=${apiKey}&language=ja&region=jp`;
+
     const response = await fetchJSON<{ results: any[]; status: string }>(url);
 
     if (response && response.status === 'OK' && response.results.length > 0) {
@@ -76,9 +88,12 @@ export default function AddressInputScreen({ navigation }: any) {
     }
     return null;
   }
-  
+
   // ---- Reverse geocoding function (using Google Geocoding API) ----
-  async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
+  async function reverseGeocode(
+    lat: number,
+    lon: number,
+  ): Promise<string | null> {
     const apiKey = Config.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       console.error('Google Maps APIキーが設定されていません。');
@@ -93,7 +108,7 @@ export default function AddressInputScreen({ navigation }: any) {
     }
     return null;
   }
-  
+
   // ---- Handler for the "Search Address" button ----
   const onSearch = async () => {
     const q = query.trim();
@@ -109,38 +124,47 @@ export default function AddressInputScreen({ navigation }: any) {
     setCoords(newCoords);
     setAddress(r.display_name);
     // Animate the map to the search result
-    mapRef.current?.animateToRegion({
-      latitude: newCoords.lat,
-      longitude: newCoords.lon,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    }, 1000);
+    mapRef.current?.animateToRegion(
+      {
+        latitude: newCoords.lat,
+        longitude: newCoords.lon,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      },
+      1000,
+    );
   };
-  
+
   // ---- Handler for the "Use Current Location" button ----
   const useCurrentLocation = async () => {
     if (!(await ensureLocationPermission())) return;
     setLoading(true);
     Geolocation.getCurrentPosition(
-      async (pos) => {
+      async pos => {
         const { latitude, longitude } = pos.coords;
         const addr = await reverseGeocode(latitude, longitude);
         const newCoords = { lat: latitude, lon: longitude };
         setCoords(newCoords);
         setAddress(addr ?? '不明な場所');
         setLoading(false);
-        mapRef.current?.animateToRegion({
-          latitude: newCoords.lat,
-          longitude: newCoords.lon,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }, 1000);
+        mapRef.current?.animateToRegion(
+          {
+            latitude: newCoords.lat,
+            longitude: newCoords.lon,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          },
+          1000,
+        );
       },
-      (e) => {
+      e => {
         setLoading(false);
-        Alert.alert('現在地取得エラー', e?.message ?? '現在地の取得に失敗しました。');
+        Alert.alert(
+          '現在地取得エラー',
+          e?.message ?? '現在地の取得に失敗しました。',
+        );
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
     );
   };
 
@@ -148,16 +172,25 @@ export default function AddressInputScreen({ navigation }: any) {
   const onSubmit = async () => {
     if (!coords || !address.trim()) return;
     const user = auth().currentUser;
-    if (!user) { Alert.alert('エラー', 'ログイン状態が無効です。'); return; }
+    if (!user) {
+      Alert.alert('エラー', 'ログイン状態が無効です。');
+      return;
+    }
     try {
-      await firestore().collection('users').doc(user.uid).set({
-        address: {
-          text: address.trim(),
-          lat: coords.lat,
-          lon: coords.lon,
-          updatedAt: firestore.FieldValue.serverTimestamp(),
-        },
-      }, { merge: true });
+      await firestore()
+        .collection('users')
+        .doc(user.uid)
+        .set(
+          {
+            address: {
+              text: address.trim(),
+              lat: coords.lat,
+              lon: coords.lon,
+              updatedAt: firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          { merge: true },
+        );
       navigation.replace('Main');
     } catch (e) {
       console.error(e);
@@ -171,7 +204,9 @@ export default function AddressInputScreen({ navigation }: any) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>居住地を入力する</Text>
-        <Text style={styles.caption}>自宅で共有しないための必要な情報です。</Text>
+        <Text style={styles.caption}>
+          自宅で共有しないための必要な情報です。
+        </Text>
       </View>
 
       <View style={styles.searchRow}>
@@ -197,23 +232,29 @@ export default function AddressInputScreen({ navigation }: any) {
       {loading && <ActivityIndicator style={{ marginVertical: 8 }} />}
 
       <View style={styles.mapWrap}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          initialRegion={{
-            latitude: 35.681236, // Initial position (Tokyo Station)
-            longitude: 139.767125,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          }}
-        >
-          {coords && (
+        {coords ? (
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={{
+              latitude: coords.lat,
+              longitude: coords.lon,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }}
+          >
             <Marker
               coordinate={{ latitude: coords.lat, longitude: coords.lon }}
               title="選択した地点"
             />
-          )}
-        </MapView>
+          </MapView>
+        ) : (
+          <View style={styles.mapPlaceholder}>
+            <Text style={{ color: '#6B7280' }}>
+              住所検索または現在地の使用で地図を表示します
+            </Text>
+          </View>
+        )}
       </View>
 
       {!!address && (
@@ -244,17 +285,33 @@ const styles = StyleSheet.create({
   caption: { marginTop: 4, color: '#6B7280', fontSize: 12 },
   searchRow: { paddingHorizontal: 16, marginTop: 8 },
   input: {
-    backgroundColor: '#FFFFFF', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB',
-    paddingVertical: 10, paddingHorizontal: 8, fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    fontSize: 16,
   },
-  actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginTop: 12 },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
   secondaryBtn: {
-    flex: 1, height: 40, borderRadius: 10, borderWidth: 1, borderColor: '#D1D5DB',
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
   },
   secondaryText: { color: '#1F2937', fontWeight: '600' },
   mapWrap: {
-    flex: 3, 
+    flex: 3,
     marginTop: 16,
     marginHorizontal: 16,
     borderRadius: 12,
@@ -264,6 +321,11 @@ const styles = StyleSheet.create({
   map: {
     ...StyleSheet.absoluteFillObject,
   },
+  mapPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   addressContainer: {
     paddingHorizontal: 16,
     marginTop: 16,
@@ -272,8 +334,12 @@ const styles = StyleSheet.create({
   addr: { marginTop: 4, fontSize: 16, fontWeight: '600', color: '#111827' },
   footer: { padding: 16, alignItems: 'center' },
   primaryBtn: {
-    width: '100%', height: 48, borderRadius: 12, backgroundColor: '#1E3A8A',
-    alignItems: 'center', justifyContent: 'center',
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#1E3A8A',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryText: { color: '#fff', fontWeight: '700' },
   disabled: { backgroundColor: '#9CA3AF' },
