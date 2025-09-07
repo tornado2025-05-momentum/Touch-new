@@ -1,7 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import {
-  SafeAreaView, View, Text, TextInput, FlatList, Image,
-  TouchableOpacity, ActivityIndicator, StyleSheet, Alert,
+  SafeAreaView,
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Alert,
 } from 'react-native';
 // SVGをインポート
 import { Svg, Path } from 'react-native-svg';
@@ -46,7 +54,9 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
     setSelectedTrack(null);
     setPlayingVideoId(null); // 新しい検索でプレイヤーは非表示に
 
-    const functionUrl = `https://us-central1-server-342ba.cloudfunctions.net/searchsongs/?q=${encodeURIComponent(term)}`;
+    const functionUrl = `https://us-central1-server-342ba.cloudfunctions.net/searchsongs/?q=${encodeURIComponent(
+      term,
+    )}`;
 
     try {
       // ===================================================================
@@ -70,28 +80,55 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
 
       // 応答が正常（200番台）の場合のみ、JSONとして処理を試みる
       if (response.ok) {
-        const data: any = JSON.parse(responseBody); // テキストをJSONに変換
+        if (!responseBody) {
+          throw new Error(
+            'サーバーから空のレスポンスが返されました。時間をおいて再度お試しください。',
+          );
+        }
 
-        if (data?.tracks?.items) {
-          const list: Track[] = data.tracks.items.map((item: any) => ({
-            id: item.id,
-            title: item.name,
-            artist: item.artists.map((a: any) => a.name).join(', '),
-            imageUrl: item.album.images[0]?.url || '',
-            youtubeVideoId: item.youtubeVideoId,
-          }));
+        let data: any;
+        try {
+          data = JSON.parse(responseBody); // テキストをJSONに変換
+        } catch (parseErr: any) {
+          // JSONでない場合は内容の先頭だけ見せてユーザーに通知
+          const preview = responseBody.slice(0, 180);
+          throw new Error(
+            `サーバーレスポンスの解析に失敗しました。内容: "${preview}"`,
+          );
+        }
+
+        if (Array.isArray(data?.tracks?.items)) {
+          const list: Track[] = data.tracks.items
+            .map((item: any) => ({
+              id: String(item.id ?? ''),
+              title: String(item.name ?? ''),
+              artist: Array.isArray(item.artists)
+                ? item.artists
+                    .map((a: any) => a?.name)
+                    .filter(Boolean)
+                    .join(', ')
+                : '',
+              imageUrl: item?.album?.images?.[0]?.url || '',
+              youtubeVideoId: (item as any).youtubeVideoId ?? null,
+            }))
+            .filter((t: Track) => !!t.id);
           setItems(list);
         } else {
           setItems([]);
+          Alert.alert(
+            '結果なし',
+            '検索結果が見つかりませんでした。キーワードを変えてお試しください。',
+          );
         }
       } else {
         // 応答がエラーの場合、その内容をAlertで表示
-        throw new Error(`サーバーからエラーが返されました (Code: ${response.status})。詳細はターミナルのログを確認してください。`);
+        throw new Error(
+          `サーバーからエラーが返されました (Code: ${response.status})。詳細はターミナルのログを確認してください。`,
+        );
       }
       // ===================================================================
       // ★★★ デバッグコード エンド ★★★
       // ===================================================================
-
     } catch (e: any) {
       console.error('▼▼▼ CATCHしたエラーの詳細 ▼▼▼');
       console.error(e);
@@ -114,7 +151,10 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
         setIsPlaying(true);
       }
     } else {
-      Alert.alert('動画なし', 'この曲に対応する再生可能な動画が見つかりませんでした。');
+      Alert.alert(
+        '動画なし',
+        'この曲に対応する再生可能な動画が見つかりませんでした。',
+      );
       setPlayingVideoId(null);
     }
   };
@@ -130,16 +170,23 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
     setTimeout(async () => {
       setLoading(true);
       try {
-        await firestore().collection('users').doc(user.uid).collection('selections').doc('music').set({
-          trackId: selectedTrack.id,
-          title: selectedTrack.title,
-          artist: selectedTrack.artist,
-          imageUrl: selectedTrack.imageUrl,
-          selectedAt: firestore.FieldValue.serverTimestamp(),
+        await firestore()
+          .collection('users')
+          .doc(user.uid)
+          .collection('selections')
+          .doc('music')
+          .set({
+            trackId: selectedTrack.id,
+            title: selectedTrack.title,
+            artist: selectedTrack.artist,
+            imageUrl: selectedTrack.imageUrl,
+            selectedAt: firestore.FieldValue.serverTimestamp(),
+          });
+
+        navigation.navigate('SelectionConfirmation', {
+          track: selectedTrack,
+          flow,
         });
-
-        navigation.navigate('SelectionConfirmation', { track: selectedTrack, flow });
-
       } catch (e) {
         console.error(e);
         Alert.alert('エラー', '保存に失敗しました。');
@@ -161,10 +208,16 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
       style={[styles.row, selectedTrack?.id === item.id && styles.selectedRow]}
       onPress={() => handleTrackPress(item)}
     >
-      {!!item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.thumb} />}
+      {!!item.imageUrl && (
+        <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+      )}
       <View style={{ flex: 1 }}>
-        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.artist} numberOfLines={1}>{item.artist}</Text>
+        <Text style={styles.title} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text style={styles.artist} numberOfLines={1}>
+          {item.artist}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -199,20 +252,23 @@ export default function MusicSearchScreen({ navigation, route }: Props) {
 
       <FlatList
         data={items}
-        keyExtractor={(it) => it.id}
+        keyExtractor={it => it.id}
         renderItem={renderItem}
-        ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: '#EEE' }} />}
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingBottom: 100 }}
+        ItemSeparatorComponent={() => (
+          <View style={{ height: 1, backgroundColor: '#EEE' }} />
+        )}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 16,
+          paddingBottom: 100,
+        }}
         keyboardShouldPersistTaps="handled"
       />
 
       {/* 曲が選択されたら次へ進むボタンを表示 */}
       {selectedTrack && (
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={handleNext}
-          >
+          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
             <Svg width="30" height="30" viewBox="0 0 24 24" fill="none">
               <Path
                 d="M9 5l7 7-7 7"
@@ -236,8 +292,19 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   searchArea: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
-  heading: { fontSize: 22, fontWeight: '700', color: '#111827', marginBottom: 12 },
-  input: { borderWidth: 1, borderColor: '#D1D5DB', padding: 10, borderRadius: 8, backgroundColor: '#FFF' },
+  heading: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -248,7 +315,13 @@ const styles = StyleSheet.create({
   selectedRow: {
     backgroundColor: '#e0eaff',
   },
-  thumb: { width: 48, height: 48, borderRadius: 6, marginRight: 12, backgroundColor: '#EEE' },
+  thumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    marginRight: 12,
+    backgroundColor: '#EEE',
+  },
   title: { fontSize: 15, fontWeight: '600', color: '#1C1C1E' },
   artist: { marginTop: 2, fontSize: 13, color: '#6B7280' },
   footer: {

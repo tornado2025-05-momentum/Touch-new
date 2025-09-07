@@ -24,7 +24,7 @@ import BookSearchScreen from '../account/BookSearchScreen';
 import BookDetailScreen from '../account/BookDetailScreen';
 import AddressInputScreen from '../account/AddressInputScreen';
 import MainScreen from '../gps/MainScreen';
-import HomeScreen from '../HomeScreen';
+import HomeScreen from '../homeScreen';
 import BackgroundScreen from '../gps/Background';
 import type { FlowStep } from './flow';
 // --- ナビゲーションの型定義を更新 ---

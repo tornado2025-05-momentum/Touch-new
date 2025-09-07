@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Metro (no watchman)",
+			"type": "shell",
+			"command": "node ./node_modules/react-native/cli.js start --reset-cache --no-interactive --no-watchman",
+			"isBackground": true
+		}
+	]
+}
