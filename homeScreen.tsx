@@ -13,11 +13,12 @@ export default function HomeScreen({ navigation }: Props) {
       <Button
         title="Go to Account"
         onPress={() => navigation.navigate('Account')}
-        
       />
       <Button
         title="Go to Chat"
-        onPress={() => navigation.navigate('Chat')}
+        onPress={() =>
+          navigation.navigate('Chat', { peerUid: 'peer-demo-uid' })
+        }
       />
       <Button
         title="Go to Trade"
