@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
+import HomeScreen from '../homeScreen';
+import GPScreen from '../gps/getGPS';
+import AccountScreen from '../account/makeAccount';
+import { ChatScreen } from '../account/ChatScreen';
+import TradeScreen from '../gps/trade';
+
 
 // --- スクリーンコンポーネントのインポート ---
 import WelcomeScreen from '../WelcomScreen';
@@ -23,6 +30,7 @@ import BackgroundScreen from '../gps/Background';
 import type { FlowStep } from './flow';
 // --- ナビゲーションの型定義を更新 ---
 export type RootStackParamList = {
+
   // 認証フローの画面
   Welcome: undefined; //サインアウト状態の時の最初の画面
   SignUp: undefined;  //アカウント登録
@@ -43,9 +51,13 @@ export type RootStackParamList = {
 
   // ログイン後のメインアプリ画面
   Main: undefined;
-  Home: undefined;       // ★ 不足していた画面を追加
-  GPS: undefined;        // ★ 不足していた画面を追加
   Background: undefined; // ★ 不足していた画面を追加
+  Home: undefined;
+  GPS: undefined;
+  Account: undefined;
+  // ★ Chat 画面は peerUid をパラメータで受け取れるように（任意）
+  Chat: { peerUid?: string } | undefined;
+  Trade: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -143,5 +155,34 @@ export default function RootNavigator() {
     <NavigationContainer>
       {renderStack()}
     </NavigationContainer>
+
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ title: 'Home' }}
+      />
+      <Stack.Screen
+        name="GPS"
+        component={GPScreen}
+        options={{ title: 'GPS' }}
+      />
+
+      <Stack.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{ title: 'Account' }}
+      />
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ title: 'Chat' }}
+      />
+      <Stack.Screen
+        name="Trade"
+        component={TradeScreen}
+        options={{ title: 'Trade' }}
+      />
+    </Stack.Navigator>
   );
 }

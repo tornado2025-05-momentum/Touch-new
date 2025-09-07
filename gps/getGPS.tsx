@@ -29,6 +29,7 @@ type Member = {
 };
 
 const ROOM_ID = 'demo-room-1'; // 全端末で同じにする
+const WALK_MAX_MPS = 1.6;
 
 export default function GetMyLocation({ route, navigation }: Props) {
   const [granted, setGranted] = useState(false);
@@ -42,6 +43,16 @@ export default function GetMyLocation({ route, navigation }: Props) {
   const placeCache = useRef(new Map<string, string>());
   const lastReverseAt = useRef(0);
   const lastCellKey = useRef<string | null>(null);
+  const nearSinceRef = useRef<Map<string, number>>(new Map());
+  const lastUploadAt = useRef(0);
+  const [roomMembers, setRoomMembers] = useState<Member[]>([]);
+  const lastUploadSampleRef = useRef<{
+    lat: number;
+    lon: number;
+    t: number;
+  } | null>(null);
+  const mySlowRef = useRef<boolean>(false);
+  const [mySpeedMps, setMySpeedMps] = useState<number | null>(null);
 
   // 起動時：未ログインなら匿名で
   useEffect(() => {
@@ -98,6 +109,40 @@ export default function GetMyLocation({ route, navigation }: Props) {
       );
     return unsub;
   }, []);
+  // 近接判定（自分が徒歩以下のときだけカウント）
+  useEffect(() => {
+    if (!pos) return;
+    const now = Date.now();
+    const nearSince = nearSinceRef.current;
+
+    members.forEach(m => {
+      if (!m || m.id === uid) return;
+      const hasCoords = typeof m.lat === 'number' && typeof m.lon === 'number';
+      const updatedAtMs = m.updatedAt?.toDate?.()?.getTime?.() ?? 0;
+
+      if (!hasCoords || now - updatedAtMs > 2 * 60 * 1000) {
+        nearSince.delete(m.id);
+        return;
+      }
+
+      const d = distanceMeters(pos.lat, pos.lon, m.lat!, m.lon!);
+
+      // 自分が徒歩以下 かつ 100m以内のときだけ継続カウント
+      if (d <= 100 && mySlowRef.current) {
+        if (!nearSince.has(m.id)) nearSince.set(m.id, now);
+      } else {
+        nearSince.delete(m.id);
+      }
+    });
+
+    const eligible = members.filter(m => {
+      if (m.id === uid) return false;
+      const since = nearSince.get(m.id);
+      return since != null && now - since >= 10 * 60 * 1000; // 10分
+    });
+    setRoomMembers(eligible);
+  }, [pos, members, uid]);
+
   //   useEffect(() => {
   //   const ref = firestore().collection('rooms').doc(ROOM_ID).collection('members');
   //   const unsub = ref.onSnapshot((snap) => {
@@ -122,6 +167,26 @@ export default function GetMyLocation({ route, navigation }: Props) {
       );
     console.log('upload', { lat, lon });
   }
+  function distanceMeters(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ) {
+    const R = 6371000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
   // 約100mグリッドでキャッシュキー
   const cellKey = (lat: number, lon: number) =>
     `${lat.toFixed(3)},${lon.toFixed(3)}`;
@@ -215,15 +280,39 @@ export default function GetMyLocation({ route, navigation }: Props) {
         const lat = p.coords.latitude;
         const lon = p.coords.longitude;
         setPos({ lat, lon });
-        uploadLocation(lat, lon);
-        updatePlace(lat, lon);
+
+        const now = Date.now();
+        // 1分間隔で送信（このタイミングで過去1分の平均速度を計算）
+        if (now - lastUploadAt.current >= 60 * 1000) {
+          // 速度[m/s] = 前回送信地点との距離 / 経過秒
+          let speedMps: number | null = null;
+          const prev = lastUploadSampleRef.current;
+          if (prev) {
+            const dt = (now - prev.t) / 1000;
+            if (dt > 0) {
+              const d = distanceMeters(lat, lon, prev.lat, prev.lon);
+              speedMps = d / dt;
+            }
+          }
+          // 歩行以下判定を更新（初回は prev なし → 判定不可 → false）
+          mySlowRef.current = speedMps != null && speedMps <= WALK_MAX_MPS;
+          setMySpeedMps(speedMps);
+
+          lastUploadAt.current = now;
+          lastUploadSampleRef.current = { lat, lon, t: now };
+
+          uploadLocation(lat, lon);
+          updatePlace(lat, lon);
+        }
       },
       e => setError(`${e.code}: ${e.message}`),
       {
         enableHighAccuracy: true,
-        distanceFilter: 5,  //5m以上で更新（節電）
-        interval: 3000,
-        fastestInterval: 1000,
+
+        distanceFilter: 0, // 距離に関係なく通知
+        interval: 60000, // 1分毎（Android目安）
+        fastestInterval: 30000, // 30秒以上
+        
       },
     );
     setWatchId(id as unknown as number);
@@ -275,5 +364,80 @@ export default function GetMyLocation({ route, navigation }: Props) {
       onStartTracking={startWatch} // startWatchを渡す
       onStopTracking={stopWatch}   // stopWatchを渡す
     />
+        
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>位置情報 x Firebase</Text>
+      <Text>UID: {uid ?? '-'}</Text>
+      {authErr && <Text style={{ color: 'red' }}>Auth Error: {authErr}</Text>}
+      <View style={styles.row}>
+        <Button title="認証を再試行" onPress={ensureAuth} />
+      </View>
+      <Text>権限: {granted ? '許可' : '未許可'}</Text>
+
+      <View style={styles.row}>
+        <Button title="現在地を1回取得 & 送信" onPress={getOnce} />
+      </View>
+      <View style={styles.row}>
+        {watchId == null ? (
+          <Button title="連続取得を開始" onPress={startWatch} />
+        ) : (
+          <Button title="連続取得を停止" onPress={stopWatch} />
+        )}
+      </View>
+
+      {pos && (
+        <Text style={styles.pos}>
+          My Lat: {pos.lat.toFixed(6)}
+          {'\n'}
+          My Lon: {pos.lon.toFixed(6)}
+          {'\n'}
+          現在地: {place ?? '取得中…'}
+        </Text>
+      )}
+
+      {mySpeedMps != null && (
+        <Text style={styles.caption}>
+          自分の推定速度: {(mySpeedMps * 3.6).toFixed(1)} km/h（
+          {mySlowRef.current ? '徒歩以下' : '速い'}）
+        </Text>
+      )}
+      {error && <Text style={styles.err}>Error: {error}</Text>}
+
+      <Text style={styles.subtitle}>
+        同じ部屋のメンバー（10分以上・半径100m以内）
+      </Text>
+      <FlatList
+        style={{ width: '100%', marginTop: 8 }}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        data={roomMembers}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => {
+          const isMe = uid && item.id === uid;
+          const timeStr = item.updatedAt?.toDate?.()
+            ? item.updatedAt.toDate().toLocaleTimeString()
+            : '-';
+          return (
+            <View style={styles.memberRow}>
+              <View style={styles.memberTop}>
+                <Text style={[styles.memberId, isMe && styles.me]}>
+                  {isMe ? '自分' : `${item.id.slice(0, 6)}…`}
+                </Text>
+                <Text style={styles.memberTime}>{timeStr}</Text>
+              </View>
+
+              <Text style={styles.memberPlace}>
+                すれ違い場所: {item.place ?? '取得中…'}
+              </Text>
+
+              <Text style={styles.memberCoords}>
+                lat:{typeof item.lat === 'number' ? item.lat.toFixed(5) : '-'}
+                {'  '}
+                lon:{typeof item.lon === 'number' ? item.lon.toFixed(5) : '-'}
+              </Text>
+            </View>
+          );
+        }}
+      />
+    </SafeAreaView>
   );
 }
