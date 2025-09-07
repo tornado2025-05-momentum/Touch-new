@@ -1,6 +1,7 @@
 import firestore from '@react-native-firebase/firestore';
 import { ensureAnonAuth } from './auth';
 
+/** Data shape stored under rooms/{roomId}/members/{uid} */
 export type Member = {
   id: string;
   lat?: number;
@@ -17,6 +18,7 @@ function roomCol(roomId: string) {
 }
 
 /** Firestore 購読（関数版） */
+/** Listen to room members ordered by updatedAt desc. */
 export function listenMembers(
   roomId = DEFAULT_ROOM_ID,
   onChange: (members: Member[]) => void,
@@ -37,6 +39,7 @@ export function listenMembers(
 }
 
 /** 位置のアップデート */
+/** Update own location (and optionally text) with serverTimestamp. */
 export async function updateMyLocation(
   lat: number,
   lon: number,
@@ -59,12 +62,14 @@ export async function updateMyLocation(
 }
 
 /** place のみ更新 */
+/** Update only place field for current user. */
 export async function setMyPlace(place: string, roomId = DEFAULT_ROOM_ID) {
   const uid = await ensureAnonAuth();
   await roomCol(roomId).doc(uid).set({ place }, { merge: true });
 }
 
 /** text のみ更新 */
+/** Update only text field for current user. */
 export async function setMyText(text: string, roomId = DEFAULT_ROOM_ID) {
   const uid = await ensureAnonAuth();
   await roomCol(roomId).doc(uid).set({ text }, { merge: true });
@@ -72,7 +77,11 @@ export async function setMyText(text: string, roomId = DEFAULT_ROOM_ID) {
 
 /** Firestore 購読（Hook 版） */
 import { useEffect, useState } from 'react';
-export function useRoomMembers(roomId = DEFAULT_ROOM_ID) {
+/** React hook that subscribes to members in a room. */
+export function useRoomMembers(roomId = DEFAULT_ROOM_ID): {
+  members: Member[];
+  error: string | null;
+} {
   const [members, setMembers] = useState<Member[]>([]);
   const [error, setError] = useState<string | null>(null);
 

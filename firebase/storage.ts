@@ -39,6 +39,7 @@ export async function uploadMyImage(localUri: string): Promise<{
 }
 
 /** 指定uid（未指定なら自分）の画像URLを取得。存在しない場合はnull */
+/** 指定 uid の画像URL。存在しない場合は null。 */
 export async function getUserImageUrl(uid?: string): Promise<string | null> {
   const id = uid ?? (await ensureAnonAuth());
   const ref = storage().ref(storagePathForUserImage(id));
