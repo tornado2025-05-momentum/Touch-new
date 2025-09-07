@@ -16,6 +16,7 @@ import firestore from '@react-native-firebase/firestore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigator/RootNavigator';
 import { recordEncounter } from '../firebase/firebase_system';
+import LocationDisplay from './LocationDisplay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GPS'>;
 
@@ -31,7 +32,7 @@ type Member = {
 const ROOM_ID = 'demo-room-1'; // 全端末で同じにする
 const WALK_MAX_MPS = 1.6;
 
-export default function getMyLocation({ route, navigation }: Props) {
+export default function GetMyLocation({ route, navigation }: Props) {
   const [granted, setGranted] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
   const [watchId, setWatchId] = useState<number | null>(null);
@@ -217,11 +218,17 @@ export default function getMyLocation({ route, navigation }: Props) {
 
     const url =
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2` +
-      `&lat=${lat}&lon=${lon}&accept-language=ja&email=you@example.com`;
+      `&lat=${lat}&lon=${lon}&accept-language=ja&email=san-j24015@sangi.com`;
     const res = await fetch(url);
-    const j = await res.json();
+    const j = (await res.json()) as { address?: any }; // ← 型アサーション追加
     const a = j.address || {};
+
     const name =
+      a.railway ||          // 駅名
+      a.amenity ||          // 公共施設名 (レストランなど)
+      a.shop ||             // 店名
+      a.tourism ||          // 観光地名
+      a.building ||         // 建物名
       a.neighbourhood ||
       a.suburb ||
       a.village ||
@@ -231,6 +238,7 @@ export default function getMyLocation({ route, navigation }: Props) {
       a.municipality ||
       a.county ||
       '位置不明';
+
     placeCache.current.set(key, name);
     return name;
   }
@@ -238,7 +246,7 @@ export default function getMyLocation({ route, navigation }: Props) {
   async function updatePlace(lat: number, lon: number) {
     const now = Date.now();
     const key = cellKey(lat, lon);
-    if (key === lastCellKey.current) return; // 同じ100mマスならスキップ
+    if (key === lastCellKey.current) return; // 以前の位置から100m以内であれば、cellKey が同じになり、地名取得処理がスキップされる
     if (now - lastReverseAt.current < 3000) return; // 3秒に1回まで
     lastReverseAt.current = now;
     lastCellKey.current = key;
@@ -268,8 +276,8 @@ export default function getMyLocation({ route, navigation }: Props) {
       p => {
         const lat = p.coords.latitude;
         const lon = p.coords.longitude;
-        setPos({ lat, lon });
-        uploadLocation(lat, lon);
+        setPos({ lat, lon }); //画面に反映
+        uploadLocation(lat, lon); //Firebaseへ送信
         updatePlace(lat, lon);
       },
       e => setError(`${e.code}: ${e.message}`),
@@ -277,7 +285,7 @@ export default function getMyLocation({ route, navigation }: Props) {
         enableHighAccuracy: true,
         timeout: 20000,
         maximumAge: 0,
-        forceRequestLocation: true,
+        //forceRequestLocation: true,
         showLocationDialog: true,
       },
     );
@@ -319,9 +327,11 @@ export default function getMyLocation({ route, navigation }: Props) {
       e => setError(`${e.code}: ${e.message}`),
       {
         enableHighAccuracy: true,
+
         distanceFilter: 0, // 距離に関係なく通知
         interval: 60000, // 1分毎（Android目安）
         fastestInterval: 30000, // 30秒以上
+        
       },
     );
     setWatchId(id as unknown as number);
@@ -333,6 +343,10 @@ export default function getMyLocation({ route, navigation }: Props) {
       setWatchId(null);
     }
   };
+
+  // UIコンポーネントに渡すために、追跡中かどうかを判定する
+  const isTracking = watchId != null;
+
   const ensureAuth = async () => {
     try {
       setAuthErr(null);
@@ -355,8 +369,21 @@ export default function getMyLocation({ route, navigation }: Props) {
     ensureAuth();
   }, []);
 
-  // 表示
+  //表示
   return (
+    <LocationDisplay
+      title="位置情報 (フォアグラウンドのみ版)"
+      uid={uid}
+      isTracking={isTracking}
+      pos={pos}
+      place={place}
+      error={error}
+      members={members}
+      onGetOnce={getOnce}
+      onStartTracking={startWatch} // startWatchを渡す
+      onStopTracking={stopWatch}   // stopWatchを渡す
+    />
+        
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>位置情報 x Firebase</Text>
       <Text>UID: {uid ?? '-'}</Text>
@@ -433,31 +460,3 @@ export default function getMyLocation({ route, navigation }: Props) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', padding: 16 },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
-  subtitle: { fontSize: 16, fontWeight: '600', marginTop: 16 },
-  caption: { fontSize: 12, color: '#666', marginTop: 4 },
-  row: { marginVertical: 6, width: 260 },
-  pos: { marginTop: 12, textAlign: 'center', fontSize: 16 },
-
-  memberRow: {
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ddd',
-  },
-  memberTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  memberId: { fontSize: 14, fontWeight: '600' },
-  me: { color: '#0A84FF' },
-  memberTime: { fontSize: 12, color: '#888' },
-  memberPlace: { marginTop: 2, fontSize: 13, color: '#444' },
-  memberCoords: { marginTop: 2, fontSize: 12, color: '#666' },
-
-  member: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
-  err: { marginTop: 12, color: 'red' },
-});

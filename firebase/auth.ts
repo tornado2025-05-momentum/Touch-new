@@ -3,7 +3,6 @@ import auth from '@react-native-firebase/auth';
 
 /**
  * React hook to obtain current Firebase Auth UID (anonymous sign-in enforced).
- * Never changes behavior; only types/docs added.
  */
 export function useAuthUid(): {
   uid: string | null;

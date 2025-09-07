@@ -24,7 +24,10 @@ import {
   uploadMyImage,
   getUserImageUrl,
   getFirebaseEnv,
+<<<<<<< HEAD
   recordEncounter,
+=======
+>>>>>>> 3392beae45451e374d770eaea06f4c28f79051bb
 } from '../firebase/firebase_system';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Trade'>;

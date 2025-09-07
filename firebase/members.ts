@@ -1,6 +1,5 @@
 import firestore from '@react-native-firebase/firestore';
 import { ensureAnonAuth } from './auth';
-
 /** Data shape stored under rooms/{roomId}/members/{uid} */
 export type Member = {
   id: string;
