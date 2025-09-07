@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useEffect, useState } from 'react';
+/*import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   Text,
@@ -214,7 +214,7 @@ export default function accountInit({ route, navigation }: Props) {
 }
 
 /** ------ Email/Password ログイン（最小） ------ */
-function EmailPasswordAuthScreen() {
+/*function EmailPasswordAuthScreen() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -301,4 +301,4 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 8,
   },
-});
+});*/

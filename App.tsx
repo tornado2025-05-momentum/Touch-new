@@ -1,11 +1,8 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import RootNavigator from './navigator/RootNavigator';
+import RootNavigator from './navigator/RootNavigator'; // パスはご自身の環境に合わせてください
 
-export default function App() {
-  return (
-    <NavigationContainer>
-      <RootNavigator />
-    </NavigationContainer>
-  );
-}
+const App = () => {
+  return <RootNavigator />;
+};
+
+export default App;
