@@ -1,0 +1,26 @@
+diff --git a/node_modules/react-native-config/package.json b/node_modules/react-native-config/package.json
+index 29112d8..7b8e290 100644
+--- a/node_modules/react-native-config/package.json
++++ b/node_modules/react-native-config/package.json
+@@ -49,21 +49,6 @@
+   "peerDependenciesMeta": {
+     "react-native-windows": {
+       "optional": true
+     }
+   },
+-  "codegenConfig": {
+-    "name": "RNCConfigModule",
+-    "type": "modules",
+-    "jsSrcsDir": "./src",
+-    "android": {
+-      "javaPackageName": "com.luggit.reactnativeconfig"
+-    },
+-    "ios": {
+-      "prefix": "RNC"
+-    },
+-    "windows": {
+-      "cppNamespace": "RNCConfig"
+-    }
+-  }
++  
+ }
