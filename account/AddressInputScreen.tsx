@@ -29,6 +29,7 @@ export default function AddressInputScreen({ navigation }: any) {
   const [address, setAddress] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const mapRef = useRef<MapView>(null);
+  const hasMapKey = !!Config.GOOGLE_MAPS_API_KEY;
 
   // ---- Function to ensure location permission ----
   async function ensureLocationPermission(): Promise<boolean> {
@@ -191,7 +192,7 @@ export default function AddressInputScreen({ navigation }: any) {
           },
           { merge: true },
         );
-      navigation.replace('Main');
+      navigation.replace('HomeTabs');
     } catch (e) {
       console.error(e);
       Alert.alert('エラー', '住所の保存に失敗しました。');
@@ -199,6 +200,10 @@ export default function AddressInputScreen({ navigation }: any) {
   };
 
   const canSubmit = !!coords && !!address.trim() && !loading;
+  const onSkip = () => {
+    if (loading) return;
+    navigation.replace('HomeTabs');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -232,7 +237,7 @@ export default function AddressInputScreen({ navigation }: any) {
       {loading && <ActivityIndicator style={{ marginVertical: 8 }} />}
 
       <View style={styles.mapWrap}>
-        {coords ? (
+        {coords && hasMapKey ? (
           <MapView
             ref={mapRef}
             style={styles.map}
@@ -250,8 +255,10 @@ export default function AddressInputScreen({ navigation }: any) {
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>
-            <Text style={{ color: '#6B7280' }}>
-              住所検索または現在地の使用で地図を表示します
+            <Text style={{ color: '#6B7280', textAlign: 'center' }}>
+              {hasMapKey
+                ? '住所検索または現在地の使用で地図を表示します'
+                : 'Map API キーが未設定のため地図は表示できません。設定後に再ビルドしてください。'}
             </Text>
           </View>
         )}
@@ -266,6 +273,13 @@ export default function AddressInputScreen({ navigation }: any) {
 
       <View style={{ flex: 1 }} />
       <View style={styles.footer}>
+        <Pressable
+          style={[styles.skipBtn, loading && styles.skipDisabled]}
+          onPress={onSkip}
+          disabled={loading}
+        >
+          <Text style={styles.skipText}>スキップ</Text>
+        </Pressable>
         <Pressable
           style={[styles.primaryBtn, !canSubmit && styles.disabled]}
           onPress={onSubmit}
@@ -341,6 +355,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  skipBtn: {
+    width: '100%',
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#9CA3AF',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  skipDisabled: {
+    opacity: 0.6,
+  },
+  skipText: { color: '#374151', fontWeight: '700' },
   primaryText: { color: '#fff', fontWeight: '700' },
   disabled: { backgroundColor: '#9CA3AF' },
 });

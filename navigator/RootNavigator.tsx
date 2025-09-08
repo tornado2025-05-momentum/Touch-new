@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
@@ -49,6 +50,7 @@ export type RootStackParamList = {
 
   // ログイン後のメインアプリ画面
   Main: undefined;
+  HomeTabs: undefined; // 追加: ホームとアカウントのタブ
   Background: undefined; // ★ 不足していた画面を追加
   Home: undefined;
   GPS: undefined;
@@ -56,12 +58,17 @@ export type RootStackParamList = {
   Chat: { peerUid?: string } | undefined;
   Trade: undefined;
   Profile:
-    | { updatedProfile?: UserProfile; updatedContent?: ContentItem[] }
+    | {
+        updatedProfile?: UserProfile;
+        updatedContent?: ContentItem[];
+        viewUid?: string; // 追加: 他人プロフィールを表示するためのUID
+      }
     | undefined;
   EditProfile: { currentProfile: UserProfile; currentContent: ContentItem[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator();
 
 // --- 画面スタックの定義 ---
 
@@ -129,21 +136,54 @@ const ProfileSetupStack = () => (
       component={AddressInputScreen}
       options={{ title: '居住地' }}
     />
+    {/**
+     * AddressInputScreen からの navigation.replace('HomeTabs') を有効にするため、
+     * 同一スタック内に HomeTabs を登録しておく。
+     * （最終的には Root レベルの条件分岐で AppStack に切り替わる設計でも問題なし）
+     */}
+    <Stack.Screen
+      name="HomeTabs"
+      component={HomeTabs}
+      options={{ headerShown: false }}
+    />
   </Stack.Navigator>
 );
 
 // ログイン後 (プロフィール作成済み)
+const HomeTabs = () => (
+  <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Screen
+      name="Home"
+      component={HomeScreen}
+      options={{ title: 'ホーム' }}
+    />
+    {/* タブ右側は常に自分のプロフィール。ルート名を Account に分離して、他人用の Profile と混ざらないようにする */}
+    <Tab.Screen
+      name="Account"
+      component={ProfileScreen}
+      options={{ title: 'アカウント' }}
+      initialParams={{ viewUid: 'me' }}
+    />
+  </Tab.Navigator>
+);
+
 const AppStack = () => (
-  <Stack.Navigator initialRouteName="Main">
+  <Stack.Navigator initialRouteName="HomeTabs">
+    <Stack.Screen
+      name="HomeTabs"
+      component={HomeTabs}
+      options={{ headerShown: false }}
+    />
+    {/* 他人プロフィール表示用（Home から push 遷移） */}
+    <Stack.Screen
+      name="Profile"
+      component={ProfileScreen}
+      options={{ title: 'Profile' }}
+    />
     <Stack.Screen
       name="Main"
       component={MainScreen}
       options={{ title: 'メイン' }}
-    />
-    <Stack.Screen
-      name="Home"
-      component={HomeScreen}
-      options={{ title: 'Home' }}
     />
     <Stack.Screen name="GPS" component={GPScreen} options={{ title: 'GPS' }} />
     <Stack.Screen
@@ -155,11 +195,6 @@ const AppStack = () => (
       name="Trade"
       component={TradeScreen}
       options={{ title: 'Trade' }}
-    />
-    <Stack.Screen
-      name="Profile"
-      component={ProfileScreen}
-      options={{ title: 'Profile' }}
     />
     <Stack.Screen
       name="EditProfile"

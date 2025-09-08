@@ -14,7 +14,7 @@ import { RootStackParamList } from '../navigator/RootNavigator';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+type Props = any; // タブ(Account)とスタック(Profile)で共用するため緩める
 
 export type UserProfile = {
   name: string;
@@ -122,11 +122,17 @@ export default function ProfileScreen({ navigation, route }: Props) {
   >('all');
   const [content, setContent] = useState<ContentItem[]>([]);
 
+  const rawViewUid = route?.params?.viewUid;
+  const meUid = auth().currentUser?.uid || null;
+  const resolvedUid = rawViewUid === 'me' || !rawViewUid ? meUid : rawViewUid;
+  const viewUid = resolvedUid || null;
+  const isMe = viewUid && auth().currentUser?.uid === viewUid;
+
   useEffect(() => {
     const fetchProfile = async () => {
-      const user = auth().currentUser;
-      if (user) {
-        const userRef = firestore().collection('users').doc(user.uid);
+      const uid = viewUid;
+      if (uid) {
+        const userRef = firestore().collection('users').doc(uid);
         const unsubscribe = userRef.onSnapshot(
           docSnapshot => {
             if (docSnapshot.exists()) {
@@ -144,7 +150,6 @@ export default function ProfileScreen({ navigation, route }: Props) {
             setUserProfile(initialProfile);
           },
         );
-
         const navUnsubscribe = navigation.addListener('focus', () => {
           if (route.params?.updatedProfile) {
             setUserProfile(route.params.updatedProfile);
@@ -163,7 +168,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
       }
     };
     fetchProfile();
-  }, [navigation, route.params]);
+  }, [navigation, route?.params, viewUid]);
 
   if (!userProfile) {
     return (
@@ -199,18 +204,22 @@ export default function ProfileScreen({ navigation, route }: Props) {
           </TouchableOpacity>
 
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <TouchableOpacity
-              style={styles.chatButton}
-              onPress={() => navigation.navigate('Chat')}
-            >
-              <Image
-                source={{
-                  uri: 'https://img.icons8.com/material-outlined/24/000000/chat.png',
-                }}
-                style={styles.chatIcon}
-              />
-              <Text style={styles.chatButtonText}>Chat</Text>
-            </TouchableOpacity>
+            {!isMe && (
+              <TouchableOpacity
+                style={styles.chatButton}
+                onPress={() =>
+                  navigation.navigate('Chat', { peerUid: viewUid || undefined })
+                }
+              >
+                <Image
+                  source={{
+                    uri: 'https://img.icons8.com/material-outlined/24/000000/chat.png',
+                  }}
+                  style={styles.chatIcon}
+                />
+                <Text style={styles.chatButtonText}>Chat</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -258,19 +267,23 @@ export default function ProfileScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.editProfileButton}
-            onPress={() =>
-              navigation.navigate('EditProfile', {
-                currentProfile: userProfile,
-                currentContent: content,
-              })
-            }
-          >
-            <Text style={styles.editProfileButtonText}>プロフィールを編集</Text>
-          </TouchableOpacity>
-        </View>
+        {isMe && (
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.editProfileButton}
+              onPress={() =>
+                navigation.navigate('EditProfile', {
+                  currentProfile: userProfile,
+                  currentContent: content,
+                })
+              }
+            >
+              <Text style={styles.editProfileButtonText}>
+                プロフィールを編集
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.tabContainer}>
           <TouchableOpacity
